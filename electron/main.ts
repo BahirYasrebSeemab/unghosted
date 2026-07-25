@@ -57,7 +57,8 @@ function createWindow() {
   for (const key of shortcuts) {
     globalShortcut.register(key, () => {});
   }
-  globalShortcut.register('Alt+A', () => { win?.close()});
+
+  globalShortcut.register('Ctrl+Shift+Q', () => { app.quit(); });
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
@@ -93,6 +94,10 @@ app.on('activate', () => {
   }
 })
 
+app.on('will-quit', () => {
+	globalShortcut.unregisterAll();
+});
+
 app.whenReady().then(() => { 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     if (permission === 'media') {
@@ -107,4 +112,12 @@ app.whenReady().then(() => {
   })
 
   createWindow ()
+
+  
+  win.on('close', (e) => {
+	 e.preventDefault();
+	 win.show();
+	 win.focus();
+	})
+
 })
