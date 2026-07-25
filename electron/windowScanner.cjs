@@ -1,6 +1,5 @@
-// electron/windowScanner.js
-const koffi = require('koffi')
 
+const koffi = require('koffi');
 const user32 = koffi.load('user32.dll')
 
 const EnumWindows = user32.func('bool EnumWindows(void* lpEnumFunc, intptr lParam)')
@@ -63,4 +62,11 @@ function scanForHiddenWindows() {
   return flagged
 }
 
-module.exports = { scanForHiddenWindows, WDA_EXCLUDEFROMCAPTURE }
+function main() {
+	const hidden = scanForHiddenWindows()
+	if (hidden.length > 0) { console.log(hidden[0].title )}
+}
+
+main()
+
+// module.exports = { scanForHiddenWindows, WDA_EXCLUDEFROMCAPTURE }
