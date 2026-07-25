@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, webContents } from 'electron'
+import { app, BrowserWindow, session, webContents, globalShortcut } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -32,7 +32,32 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
+    kiosk: true,
+    fullscreen: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    closable: false,
+    autoHideMenuBar: false,
+    alwaysOnTop: true
   })
+
+  win.setMenuBarVisibility(false)
+  win.setKiosk(true);
+  win.setFullScreen(true);
+
+  const shortcuts = [
+    'Alt+F4',
+    'CommandOrControl+W',
+    'CommandOrControl+R',
+    'F11',
+    'Escape'
+  ]
+
+  for (const key of shortcuts) {
+    globalShortcut.register(key, () => {});
+  }
+  globalShortcut.register('Alt+A', () => { win?.close()});
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
@@ -45,6 +70,9 @@ function createWindow() {
     // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
+
+  win.on('leave-full-screen', () => win?.setFullScreen(true));
+  win.on('blur', () => win.focus());
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common
