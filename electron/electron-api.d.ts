@@ -8,6 +8,8 @@ declare global {
     ipcRenderer: Pick<IpcRenderer, 'on' | 'off' | 'send' | 'invoke'> & {
       onWindowScan: (callback: (flagged: FlaggedWindow[]) => void) => () => void,
       onWindowScan: (callback: (flagged: FlaggedWindow[]) => void) => () => void
+      enterKioskMode: (callback: () => void) => () => void
+      exitKioskMode: (callback: () => void) => () => void
     }
   }
 }

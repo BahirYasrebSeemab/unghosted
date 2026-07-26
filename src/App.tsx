@@ -538,6 +538,7 @@ export default function App() {
     if (!isSessionActive) return
 
       const unsubScan = window.ipcRenderer?.onWindowScan((flagged) => {
+	      console.log('[renderer] received window-scan:', flagged);
         flagged.forEach((w) => {
           if (w.type === 'BLACKLISTED_NAME') {
             addEvent('PROCESS', `Blacklisted app detected: "${w.title}" (matched "${w.matchedTerm}")`, 'critical')
@@ -685,10 +686,13 @@ export default function App() {
       keyboard: { status: "active", value: "Normal", count: 0 },
       process: { status: "active", value: "Normal", count: 0 },
     })
+    window.ipcRenderer?.startSessionScan()
+    window.ipcRenderer?.enterKioskMode()
   }
 
   const stopSession = async () => {
     setIsSessionActive(false);
+    window.ipcRenderer?.exitKioskMode()
 
     if (audioAnimFrameRef.current) {
       cancelAnimationFrame(audioAnimFrameRef.current)

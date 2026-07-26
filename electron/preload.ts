@@ -30,6 +30,8 @@ onWindowScanStatus: (callback: (status: { activeCount: number }) => void) => {
   return () => ipcRenderer.removeListener('window-scan-status', listener)
 },
 startSessionScan: () => ipcRenderer.send('session-start'),
+	enterKioskMode: () => ipcRenderer.send('enter-kiosk'),
+	exitKioskMode: () => ipcRenderer.send('exit-kiosk')
   // You can expose other APTs you need here.
   // ...
 })

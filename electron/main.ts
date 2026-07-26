@@ -37,7 +37,51 @@ function flagKey(w: FlaggedWindow): string {
 const currentlyFlagged = new Set<string>();
 
 let win: BrowserWindow | null
-let isQuittable = false;
+let isQuittable = true;
+
+function enterKioskMode() {
+	if (!win) return
+	isLocked = true
+
+	win.setKiosk(true)
+	win.setFullScreen(true)
+	win.setResizable(true)
+	win.setMaximizable(true)
+	win.setMinimizable(true)
+	win.setClosable(true)
+	win.setMenuBarVisibility(false)
+
+	const shortcuts = [
+		'Alt+F4',
+		'CommandOrControl+W',
+		'CommandOrControl+R',
+		'F11',
+		'Escape'
+	]
+
+	for (const key of shortcuts) {
+		globalShortcut.register(key, () => {});
+	}
+
+	const registered = globalShortcut.register('Ctrl+Shift+Q', () => { 
+		isQuittable = true;
+		app.quit(); 
+		win.close()
+		console.log("FIRED")
+	});
+	console.log('[shortcut] registered:', registered)
+
+function exitKioskMode() {
+	if (!win) return
+	isLocked = false
+
+	win.setKiosk(false)
+	win.setFullscreen(false)
+	win.setMaximizable(true)
+	win.setClosable(true)
+	win.setMinimizable(true)
+
+	globalShortcut.unregisterAll()
 
 function createWindow() {
   win = new BrowserWindow({
@@ -149,25 +193,6 @@ app.whenReady().then(() => {
 
   createWindow ()
 
-  const shortcuts = [
-    'Alt+F4',
-    'CommandOrControl+W',
-    'CommandOrControl+R',
-    'F11',
-    'Escape'
-  ]
-
-  for (const key of shortcuts) {
-    globalShortcut.register(key, () => {});
-  }
-
-  const registered = globalShortcut.register('Ctrl+Shift+Q', () => { 
-	  isQuittable = true;
-	  app.quit(); 
-	  win.close()
-	  console.log("FIRED")
-  });
-  console.log('[shortcut] registered:', registered)
   
   win.on('close', (e) => {
 	  if (isQuittable) return
@@ -184,4 +209,12 @@ app.on('before-quit', () => {
 
 ipcMain.on('session-start', () => {
   currentlyFlagged.clear()
+})
+
+ipcMain.on('enter-kiosk', () => {
+	enterKioskMode()
+})
+
+ipcMain.on('exit-kiosk', () => {
+	exitKioskMode()
 })
