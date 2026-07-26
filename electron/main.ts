@@ -2,6 +2,7 @@ import { app, BrowserWindow, session, webContents, globalShortcut } from 'electr
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { scanWindows } from './windowScanner'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -23,6 +24,11 @@ export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+
+const BLACK_LISTED_NAMES = [
+  'metop vpn mini',
+  'ghostgpt'
+]
 
 let win: BrowserWindow | null
 
@@ -64,6 +70,13 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
+
+  setInterval(() => {
+    const flagged = scanWindows(BLACK_LISTED_NAMES);
+    if (flagged.length > 0) {
+      win?.webContents.send('window-scan', flagged)
+    }
+  }, 3000)
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)

@@ -1,4 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron'
+import type { FlaggedWindow } from './windowScanner'
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
@@ -17,6 +18,11 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
+  },
+  onWindowScan: (callback: (flagged: any[]) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, flagged: any[]) => callback(flagged)
+    ipcRenderer.on('window-scan', listener)
+    return () => ipcRenderer.removeListener('window-scan', listener)
   },
 
   // You can expose other APTs you need here.

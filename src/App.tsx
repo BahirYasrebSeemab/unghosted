@@ -24,6 +24,7 @@ type Monitors = {
   mouse: MonitorState
   clipboard: MonitorState
   keyboard: MonitorState
+  process: MonitorState
 }
 
 const SESSION_ID = "INT-" + Math.floor(2800 + Math.random() * 200)
@@ -138,6 +139,81 @@ function EventLog({ events }: { events: AlertEvent[] }) {
           <span className="text-xs text-slate-300 flex-1">{e.message}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+function ScreenCaptureFeed({
+  hasPermission,
+  onPermission,
+}: {
+  hasPermission: boolean
+  onPermission: (stream: MediaStream) => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let stream: MediaStream | null = null
+    let cancelled = false
+
+    navigator.mediaDevices
+      .getDisplayMedia({ video: { frameRate: 5 }, audio: false })
+      .then(async (s) => {
+        if (cancelled) {
+          s.getTracks().forEach((t) => t.stop())
+          return
+        }
+        stream = s
+        onPermission(s)
+        if (!videoRef.current) return
+        videoRef.current.srcObject = s
+        await videoRef.current.play()
+
+        // If the candidate stops sharing via the browser/OS's own
+        // "Stop sharing" control, the track ends on its own — reflect
+        // that in the UI rather than silently going stale.
+        s.getVideoTracks()[0]?.addEventListener('ended', () => {
+          setError('Screen sharing stopped')
+        })
+      })
+      .catch((err) => {
+        console.error(err.message)
+        setError(err?.message ?? 'Screen share permission denied')
+      })
+
+    return () => {
+      cancelled = true
+      stream?.getTracks().forEach((t) => t.stop())
+    }
+  }, [onPermission])
+
+  return (
+    <div className="relative rounded-lg overflow-hidden bg-[#080b12] aspect-video border border-[#1e2230]">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className={`w-full h-full object-contain ${hasPermission ? 'block' : 'hidden'}`}
+      />
+      {!hasPermission && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <span className="text-4xl opacity-20">🖥</span>
+          <span className="text-xs text-slate-600 font-mono">
+            {error ? error : 'Awaiting screen share permission'}
+          </span>
+        </div>
+      )}
+      {hasPermission && (
+        <>
+          <div className="absolute top-2 left-2 w-5 h-5 border-t border-l border-amber-500/40" />
+          <div className="absolute top-2 right-2 w-5 h-5 border-t border-r border-amber-500/40" />
+          <div className="absolute bottom-2 left-2 w-5 h-5 border-b border-l border-amber-500/40" />
+          <div className="absolute bottom-2 right-2 w-5 h-5 border-b border-r border-amber-500/40" />
+          <div className="absolute top-2 left-2 text-[9px] font-mono text-amber-600 pl-6">SCREEN</div>
+        </>
+      )}
     </div>
   )
 }
@@ -283,6 +359,7 @@ export default function App() {
     mouse: { status: "active", value: "On screen", count: 0 },
     clipboard: { status: "active", value: "No activity", count: 0 },
     keyboard: { status: "active", value: "Normal cadence", count: 0 },
+    process: { status: "active", value: "No hidden apps", count: 0 }
   })
   const [isSessionActive, setIsSessionActive] = useState(false)
 
@@ -291,7 +368,13 @@ export default function App() {
   const audioAnimFrameRef = useRef<number>(0)
   const keystrokesRef = useRef<number[]>([])
   const lastKeystrokeRef = useRef<number>(0)
-  const gazeAlertCooldownRef = useRef(0)
+  const gazeAlertCooldownRef = useRef(0);
+
+  const [hasScreen, setHasScreen] = useState(false);
+  
+  const handleScreenPermission = useCallback((_stream: MediaStream) => {
+    setHasScreen(true);
+  }, [])
 
   const addEvent = useCallback((category: string, message: string, severity: Severity) => {
     const ev: AlertEvent = {
@@ -320,7 +403,9 @@ export default function App() {
                   ? "clipboard"
                   : category === "KEYBOARD"
                     ? "keyboard"
-                    : null
+                    : category === "PROCESS"
+                      ? "process"
+                      : null
       if (!key) return prev
       return {
         ...prev,
@@ -447,6 +532,25 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKey)
   }, [isSessionActive, addEvent])
 
+  // process monitoring
+  useEffect(() => {
+    if (!isSessionActive) return
+      const unsubscribe = window.ipcRenderer?.onWindowScan((flagged) => {
+        flagged.forEach((w) => {
+          if (w.type === 'BLACKLISTED_NAME') {
+            addEvent('PROCESS', `Blacklisted app detected: "${w.title}" (matched "${w.matchedTerm}")`, 'critical')
+          } else {
+            addEvent('PROCESS', `Window hidden from screen capture: "${w.title || 'untitled'}"`, 'critical')
+          }
+        })
+        setMonitors((p) => ({
+          ...p,
+          process: { ...p.process, status: 'critical', count: p.process.count + flagged.length, value: `${flagged.length} flagged` },
+        }))
+      })
+      return () => unsubscribe?.()
+  }, [isSessionActive, addEvent]);
+
   // Audio monitoring via Web Audio API
   const startAudioMonitoring = useCallback(
     (stream: MediaStream) => {
@@ -566,6 +670,7 @@ export default function App() {
       mouse: { status: "active", value: "Monitoring...", count: 0 },
       clipboard: { status: "active", value: "Clean", count: 0 },
       keyboard: { status: "active", value: "Normal", count: 0 },
+      process: { status: "active", value: "Normal", count: 0 },
     })
   }
 
@@ -678,6 +783,19 @@ export default function App() {
               onPermission={handleCameraPermission}
               onReading={handleReading}
             />
+            <div>
+            <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Screen Feed</span>
+            {hasScreen && <span className="text-xs font-mono text-amber-600">Recording</span>}
+            </div>
+            {isSessionActive ? (
+              <ScreenCaptureFeed hasPermission={hasScreen} onPermission={handleScreenPermission} />
+            ) : (
+            <div className="rounded-lg bg-[#080b12] aspect-video border border-[#1e2230] flex items-center justify-center text-xs text-slate-600 font-mono">
+            Starts with session
+            </div>
+            )}
+            </div>
           </div>
 
           {/* Gaze heatmap legend */}
@@ -748,6 +866,7 @@ export default function App() {
               <MonitorCard icon="🖱" label="Mouse" monitor={monitors.mouse} />
               <MonitorCard icon="📋" label="Clipboard" monitor={monitors.clipboard} />
               <MonitorCard icon="⌨️" label="Keystrokes" monitor={monitors.keyboard} />
+              <MonitorCard icon="🚫" label="Hidden Apps" monitor={monitors.process} />
             </div>
           </div>
 
