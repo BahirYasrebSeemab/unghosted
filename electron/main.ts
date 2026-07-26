@@ -37,6 +37,7 @@ function flagKey(w: FlaggedWindow): string {
 const currentlyFlagged = new Set<string>();
 
 let win: BrowserWindow | null
+let isQuittable = false;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -58,19 +59,6 @@ function createWindow() {
   win.setKiosk(true);
   win.setFullScreen(true);
 
-  const shortcuts = [
-    'Alt+F4',
-    'CommandOrControl+W',
-    'CommandOrControl+R',
-    'F11',
-    'Escape'
-  ]
-
-  for (const key of shortcuts) {
-    globalShortcut.register(key, () => {});
-  }
-
-  globalShortcut.register('Ctrl+Shift+Q', () => { app.quit(); });
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
@@ -95,6 +83,7 @@ function createWindow() {
   flaggedKeys.forEach((key) => currentlyFlagged.add(key))
 
   if (newlyFlagged.length > 0) {
+	  console.log('[main] sending window-scan:', newlyFlagged.length);
     win.webContents.send('window-scan', newlyFlagged)
   }
 
@@ -160,13 +149,37 @@ app.whenReady().then(() => {
 
   createWindow ()
 
+  const shortcuts = [
+    'Alt+F4',
+    'CommandOrControl+W',
+    'CommandOrControl+R',
+    'F11',
+    'Escape'
+  ]
+
+  for (const key of shortcuts) {
+    globalShortcut.register(key, () => {});
+  }
+
+  const registered = globalShortcut.register('Ctrl+Shift+Q', () => { 
+	  isQuittable = true;
+	  app.quit(); 
+	  win.close()
+	  console.log("FIRED")
+  });
+  console.log('[shortcut] registered:', registered)
   
   win.on('close', (e) => {
+	  if (isQuittable) return
 	 e.preventDefault();
 	 win.show();
 	 win.focus();
 	})
 
+})
+
+app.on('before-quit', () => {
+	isQuittable = true;
 })
 
 ipcMain.on('session-start', () => {
