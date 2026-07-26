@@ -29,6 +29,7 @@ onWindowScanStatus: (callback: (status: { activeCount: number }) => void) => {
   ipcRenderer.on('window-scan-status', listener)
   return () => ipcRenderer.removeListener('window-scan-status', listener)
 },
+startSessionScan: () => ipcRenderer.send('session-start'),
   // You can expose other APTs you need here.
   // ...
 })

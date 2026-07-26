@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, webContents, globalShortcut, desktopCapturer } from 'electron'
+import { app, BrowserWindow, session, webContents, globalShortcut, desktopCapturer, ipcMain } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -167,4 +167,8 @@ app.whenReady().then(() => {
 	 win.focus();
 	})
 
+})
+
+ipcMain.on('session-start', () => {
+  currentlyFlagged.clear()
 })
