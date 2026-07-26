@@ -31,7 +31,7 @@ const BLACK_LISTED_NAMES = [
 ]
 
 function flagKey(w: FlaggedWindow): string {
-  return '${w.pid}:${w.type}'
+  return `${w.pid}:${w.type}`
 }
 
 const currentlyFlagged = new Set<string>();
@@ -83,6 +83,9 @@ function createWindow() {
 
     // only the ones not already being tracked are genuinely new
     const newlyFlagged = flagged.filter((w) => !currentlyFlagged.has(flagKey(w)))
+    
+      console.log('[scan] found:', flagged.length, '| already tracked:', currentlyFlagged.size, '| new:', newlyFlagged.length)
+    
 
     // drop anything from tracking that's no longer present this tick
     // (window closed, or stopped matching) so it can re-flag if it returns
