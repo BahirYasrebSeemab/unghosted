@@ -535,7 +535,8 @@ export default function App() {
   // process monitoring
   useEffect(() => {
     if (!isSessionActive) return
-      const unsubscribe = window.ipcRenderer?.onWindowScan((flagged) => {
+
+      const unsubScan = window.ipcRenderer?.onWindowScan((flagged) => {
         flagged.forEach((w) => {
           if (w.type === 'BLACKLISTED_NAME') {
             addEvent('PROCESS', `Blacklisted app detected: "${w.title}" (matched "${w.matchedTerm}")`, 'critical')
@@ -543,13 +544,24 @@ export default function App() {
             addEvent('PROCESS', `Window hidden from screen capture: "${w.title || 'untitled'}"`, 'critical')
           }
         })
+      })
+
+      const unsubStatus = window.ipcRenderer?.onWindowScanStatus(({ activeCount }) => {
         setMonitors((p) => ({
           ...p,
-          process: { ...p.process, status: 'critical', count: p.process.count + flagged.length, value: `${flagged.length} flagged` },
+          process: {
+            ...p.process,
+            status: activeCount > 0 ? 'critical' : 'active',
+            value: activeCount > 0 ? `${activeCount} active flag${activeCount !== 1 ? 's' : ''}` : 'No hidden apps',
+          },
         }))
       })
-      return () => unsubscribe?.()
-  }, [isSessionActive, addEvent]);
+
+      return () => {
+        unsubScan?.()
+        unsubStatus?.()
+      }
+  }, [isSessionActive, addEvent])
 
   // Audio monitoring via Web Audio API
   const startAudioMonitoring = useCallback(

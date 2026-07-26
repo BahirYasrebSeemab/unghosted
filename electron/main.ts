@@ -2,7 +2,7 @@ import { app, BrowserWindow, session, webContents, globalShortcut } from 'electr
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { scanWindows } from './windowScanner'
+import { scanWindows, type FlaggedWindow } from './windowScanner'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -29,6 +29,12 @@ const BLACK_LISTED_NAMES = [
   'metop vpn mini',
   'ghostgpt'
 ]
+
+function flagKey(w: FlaggedWindow): string {
+  return '${w.pid}:${w.type}'
+}
+
+const currentlyFlagged = new Set<string>();
 
 let win: BrowserWindow | null
 
@@ -72,11 +78,28 @@ function createWindow() {
   })
 
   setInterval(() => {
-    const flagged = scanWindows(BLACK_LISTED_NAMES);
-    if (flagged.length > 0) {
-      win?.webContents.send('window-scan', flagged)
+    const flagged = scanWindows(BLACK_LISTED_NAMES)
+    const flaggedKeys = new Set(flagged.map(flagKey))
+
+    // only the ones not already being tracked are genuinely new
+    const newlyFlagged = flagged.filter((w) => !currentlyFlagged.has(flagKey(w)))
+
+    // drop anything from tracking that's no longer present this tick
+    // (window closed, or stopped matching) so it can re-flag if it returns
+    for (const key of currentlyFlagged) {
+      if (!flaggedKeys.has(key)) currentlyFlagged.delete(key)
     }
+  flaggedKeys.forEach((key) => currentlyFlagged.add(key))
+
+  if (newlyFlagged.length > 0) {
+    win.webContents.send('window-scan', newlyFlagged)
+  }
+
+  // separately, let the renderer know the current total count for the
+  // status card, without it driving new events/risk each tick
+  win.webContents.send('window-scan-status', { activeCount: flagged.length })
   }, 3000)
+
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)

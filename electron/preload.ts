@@ -19,12 +19,16 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
-  onWindowScan: (callback: (flagged: any[]) => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, flagged: any[]) => callback(flagged)
-    ipcRenderer.on('window-scan', listener)
-    return () => ipcRenderer.removeListener('window-scan', listener)
-  },
-
+onWindowScan: (callback: (flagged: FlaggedWindow[]) => void) => {
+  const listener = (_e: Electron.IpcRendererEvent, flagged: FlaggedWindow[]) => callback(flagged)
+  ipcRenderer.on('window-scan', listener)
+  return () => ipcRenderer.removeListener('window-scan', listener)
+},
+onWindowScanStatus: (callback: (status: { activeCount: number }) => void) => {
+  const listener = (_e: Electron.IpcRendererEvent, status: { activeCount: number }) => callback(status)
+  ipcRenderer.on('window-scan-status', listener)
+  return () => ipcRenderer.removeListener('window-scan-status', listener)
+},
   // You can expose other APTs you need here.
   // ...
 })
