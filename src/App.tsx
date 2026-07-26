@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ConcentrationMonitor, type ConcentrationReading } from "./concentrationMonitor"
+import { scanWindows } from "../electron/windowScanner"
 
 type Severity = "info" | "warning" | "critical"
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, webContents, globalShortcut } from 'electron'
+import { app, BrowserWindow, session, webContents, globalShortcut, desktopCapturer } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -145,6 +145,14 @@ app.whenReady().then(() => {
 
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
     return permission === 'media'
+  })
+
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+  const sources = await desktopCapturer.getSources({ types: ['screen'] })
+  // auto-select the primary screen — no picker UI, since this is a
+  // proctoring context where you generally want "capture their screen",
+  // not "let them choose which window to share"
+  callback({ video: sources[0], audio: 'loopback' })
   })
 
   createWindow ()
