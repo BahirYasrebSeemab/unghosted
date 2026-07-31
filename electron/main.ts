@@ -6,7 +6,6 @@ import { scanWindows, type FlaggedWindow } from './windowScanner'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-let isLocked = false;
 
 // The built directory structure
 //

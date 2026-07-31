@@ -385,19 +385,11 @@ let win;
 let isQuittable = true;
 function enterKioskMode() {
   if (!win) return;
-<<<<<<< HEAD
-  win.setKiosk(true);
-  win.setFullScreen(true);
-  win.setResizable(true);
-  win.setMaximizable(true);
-  win.setMinimizable(true);
-=======
   win.setKiosk(false);
   win.setFullScreen(true);
   win.setResizable(false);
   win.setMaximizable(true);
   win.setMinimizable(false);
->>>>>>> 32919e056d44f9fe597f69a44a6b2e58ecaa05b4
   win.setClosable(true);
   win.setMenuBarVisibility(false);
   const shortcuts = [
