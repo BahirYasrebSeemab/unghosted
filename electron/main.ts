@@ -6,6 +6,7 @@ import { scanWindows, type FlaggedWindow } from './windowScanner'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+let isLocked = false;
 
 // The built directory structure
 //
@@ -43,11 +44,11 @@ function enterKioskMode() {
 	if (!win) return
 	isLocked = true
 
-	win.setKiosk(true)
+	win.setKiosk(false)
 	win.setFullScreen(true)
-	win.setResizable(true)
+	win.setResizable(false)
 	win.setMaximizable(true)
-	win.setMinimizable(true)
+	win.setMinimizable(false)
 	win.setClosable(true)
 	win.setMenuBarVisibility(false)
 
@@ -70,18 +71,20 @@ function enterKioskMode() {
 		console.log("FIRED")
 	});
 	console.log('[shortcut] registered:', registered)
+}
 
 function exitKioskMode() {
 	if (!win) return
 	isLocked = false
 
 	win.setKiosk(false)
-	win.setFullscreen(false)
+	win.setFullScreen(false)
 	win.setMaximizable(true)
 	win.setClosable(true)
 	win.setMinimizable(true)
 
 	globalShortcut.unregisterAll()
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -89,19 +92,19 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
-    kiosk: true,
-    fullscreen: true,
-    resizable: false,
-    maximizable: false,
+    kiosk: false,
+    fullscreen: false,
+    resizable: true,
+    maximizable: true,
     minimizable: false,
-    closable: false,
+    closable: true,
     autoHideMenuBar: false,
-    alwaysOnTop: true
+    alwaysOnTop: false
   })
 
   win.setMenuBarVisibility(false)
-  win.setKiosk(true);
-  win.setFullScreen(true);
+  win.setKiosk(false);
+  win.setFullScreen(false);
 
 
   // Test active push message to Renderer-process.

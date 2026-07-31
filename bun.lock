@@ -32,6 +32,7 @@
     },
   },
   "trustedDependencies": [
+    "electron",
     "koffi",
   ],
   "packages": {

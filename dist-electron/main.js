@@ -380,24 +380,61 @@ function flagKey(w) {
 const currentlyFlagged = /* @__PURE__ */ new Set();
 let win;
 let isQuittable = true;
+function enterKioskMode() {
+  if (!win) return;
+  win.setKiosk(false);
+  win.setFullScreen(true);
+  win.setResizable(false);
+  win.setMaximizable(true);
+  win.setMinimizable(false);
+  win.setClosable(true);
+  win.setMenuBarVisibility(false);
+  const shortcuts = [
+    "Alt+F4",
+    "CommandOrControl+W",
+    "CommandOrControl+R",
+    "F11",
+    "Escape"
+  ];
+  for (const key of shortcuts) {
+    globalShortcut.register(key, () => {
+    });
+  }
+  const registered = globalShortcut.register("Ctrl+Shift+Q", () => {
+    isQuittable = true;
+    app.quit();
+    win.close();
+    console.log("FIRED");
+  });
+  console.log("[shortcut] registered:", registered);
+}
+function exitKioskMode() {
+  if (!win) return;
+  win.setKiosk(false);
+  win.setFullScreen(false);
+  win.setMaximizable(true);
+  win.setClosable(true);
+  win.setMinimizable(true);
+  globalShortcut.unregisterAll();
+}
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs")
     },
-    kiosk: true,
-    fullscreen: true,
-    resizable: false,
-    maximizable: false,
+    kiosk: false,
+    fullscreen: false,
+    resizable: true,
+    maximizable: true,
     minimizable: false,
-    closable: false,
+    closable: true,
     autoHideMenuBar: false,
-    alwaysOnTop: true
+    alwaysOnTop: false
   });
   win.setMenuBarVisibility(false);
-  win.setKiosk(true);
-  win.setFullScreen(true);
+  win.setKiosk(false);
+  win.setFullScreen(false);
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
@@ -454,24 +491,6 @@ app.whenReady().then(() => {
     callback({ video: sources[0], audio: "loopback" });
   });
   createWindow();
-  const shortcuts = [
-    "Alt+F4",
-    "CommandOrControl+W",
-    "CommandOrControl+R",
-    "F11",
-    "Escape"
-  ];
-  for (const key of shortcuts) {
-    globalShortcut.register(key, () => {
-    });
-  }
-  const registered = globalShortcut.register("Ctrl+Shift+Q", () => {
-    isQuittable = true;
-    app.quit();
-    win.close();
-    console.log("FIRED");
-  });
-  console.log("[shortcut] registered:", registered);
   win.on("close", (e) => {
     if (isQuittable) return;
     e.preventDefault();
@@ -484,6 +503,12 @@ app.on("before-quit", () => {
 });
 ipcMain.on("session-start", () => {
   currentlyFlagged.clear();
+});
+ipcMain.on("enter-kiosk", () => {
+  enterKioskMode();
+});
+ipcMain.on("exit-kiosk", () => {
+  exitKioskMode();
 });
 export {
   MAIN_DIST,
