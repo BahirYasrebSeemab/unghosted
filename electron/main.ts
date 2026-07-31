@@ -38,6 +38,7 @@ const currentlyFlagged = new Set<string>();
 
 let win: BrowserWindow | null
 let isQuittable = true;
+let isLocked = false;
 
 function enterKioskMode() {
 	if (!win) return
@@ -66,22 +67,25 @@ function enterKioskMode() {
 	const registered = globalShortcut.register('Ctrl+Shift+Q', () => { 
 		isQuittable = true;
 		app.quit(); 
-		win.close()
-		console.log("FIRED")
+		win?.close();
+		console.log("FIRED");
 	});
-	console.log('[shortcut] registered:', registered)
+
+	console.log('[shortcut] registered:', registered);
+}
 
 function exitKioskMode() {
 	if (!win) return
 	isLocked = false
 
 	win.setKiosk(false)
-	win.setFullscreen(false)
+	win.setFullScreen(false)
 	win.setMaximizable(true)
 	win.setClosable(true)
 	win.setMinimizable(true)
 
 	globalShortcut.unregisterAll()
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -128,12 +132,12 @@ function createWindow() {
 
   if (newlyFlagged.length > 0) {
 	  console.log('[main] sending window-scan:', newlyFlagged.length);
-    win.webContents.send('window-scan', newlyFlagged)
+    win?.webContents.send('window-scan', newlyFlagged)
   }
 
   // separately, let the renderer know the current total count for the
   // status card, without it driving new events/risk each tick
-  win.webContents.send('window-scan-status', { activeCount: flagged.length })
+  win?.webContents.send('window-scan-status', { activeCount: flagged.length })
   }, 3000)
 
 
@@ -145,7 +149,7 @@ function createWindow() {
   }
 
   win.on('leave-full-screen', () => win?.setFullScreen(true));
-  win.on('blur', () => win.focus());
+  win?.on('blur', () => win.focus());
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common

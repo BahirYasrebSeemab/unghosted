@@ -30,6 +30,4 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   startSessionScan: () => electron.ipcRenderer.send("session-start"),
   enterKioskMode: () => electron.ipcRenderer.send("enter-kiosk"),
   exitKioskMode: () => electron.ipcRenderer.send("exit-kiosk")
-  // You can expose other APTs you need here.
-  // ...
 });

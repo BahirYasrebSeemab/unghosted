@@ -19,19 +19,17 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
-onWindowScan: (callback: (flagged: FlaggedWindow[]) => void) => {
-  const listener = (_e: Electron.IpcRendererEvent, flagged: FlaggedWindow[]) => callback(flagged)
-  ipcRenderer.on('window-scan', listener)
-  return () => ipcRenderer.removeListener('window-scan', listener)
-},
-onWindowScanStatus: (callback: (status: { activeCount: number }) => void) => {
-  const listener = (_e: Electron.IpcRendererEvent, status: { activeCount: number }) => callback(status)
-  ipcRenderer.on('window-scan-status', listener)
-  return () => ipcRenderer.removeListener('window-scan-status', listener)
-},
-startSessionScan: () => ipcRenderer.send('session-start'),
-	enterKioskMode: () => ipcRenderer.send('enter-kiosk'),
-	exitKioskMode: () => ipcRenderer.send('exit-kiosk')
-  // You can expose other APTs you need here.
-  // ...
+  onWindowScan: (callback: (flagged: FlaggedWindow[]) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, flagged: FlaggedWindow[]) => callback(flagged)
+    ipcRenderer.on('window-scan', listener)
+    return () => ipcRenderer.removeListener('window-scan', listener)
+  },
+  onWindowScanStatus: (callback: (status: { activeCount: number }) => void) => {
+    const listener = (_e: Electron.IpcRendererEvent, status: { activeCount: number }) => callback(status)
+    ipcRenderer.on('window-scan-status', listener)
+    return () => ipcRenderer.removeListener('window-scan-status', listener)
+  },
+  startSessionScan: () => ipcRenderer.send('session-start'),
+  enterKioskMode: () => ipcRenderer.send('enter-kiosk'),
+  exitKioskMode: () => ipcRenderer.send('exit-kiosk')
 })

@@ -316,12 +316,6 @@ native.unregister;
 native.version;
 native.view;
 var index_default = native;
-const user32 = index_default.load("user32.dll");
-const EnumWindows = user32.func("bool EnumWindows(void* lpEnumFunc, intptr lParam)");
-const GetWindowDisplayAffinity = user32.func("bool GetWindowDisplayAffinity(void* hWnd, _Out_ uint32* pdwAffinity)");
-const GetWindowTextW = user32.func("int GetWindowTextW(void* hWnd, _Out_ uint16* lpString, int nMaxCount)");
-const IsWindowVisible = user32.func("bool IsWindowVisible(void* hWnd)");
-const GetWindowThreadProcessId = user32.func("uint32 GetWindowThreadProcessId(void* hWnd, _Out_ uint32* lpdwProcessId)");
 const WDA_MONITOR = 1;
 const WDA_EXCLUDEFROMCAPTURE = 17;
 const WNDENUMPROC = index_default.proto("bool __stdcall WndEnumCallback(void*, intptr)");
@@ -332,6 +326,15 @@ function getWindowTitleSafe(hwnd) {
   return buf.toString("utf16le", 0, len * 2);
 }
 function scanWindows(blacklist = []) {
+  if (process.platform !== "win32") {
+    return [];
+  }
+  const user32 = index_default.load("user32.dll");
+  const EnumWindows = user32.func("bool EnumWindows(void* lpEnumFunc, intptr lParam)");
+  const GetWindowDisplayAffinity = user32.func("bool GetWindowDisplayAffinity(void* hWnd, _Out_ uint32* pdwAffinity)");
+  user32.func("int GetWindowTextW(void* hWnd, _Out_ uint16* lpString, int nMaxCount)");
+  const IsWindowVisible = user32.func("bool IsWindowVisible(void* hWnd)");
+  const GetWindowThreadProcessId = user32.func("uint32 GetWindowThreadProcessId(void* hWnd, _Out_ uint32* lpdwProcessId)");
   const flagged = [];
   const lowerBlacklist = blacklist.map((b) => b.toLowerCase());
   const callback = index_default.register((hwnd) => {
@@ -380,6 +383,43 @@ function flagKey(w) {
 const currentlyFlagged = /* @__PURE__ */ new Set();
 let win;
 let isQuittable = true;
+function enterKioskMode() {
+  if (!win) return;
+  win.setKiosk(true);
+  win.setFullScreen(true);
+  win.setResizable(true);
+  win.setMaximizable(true);
+  win.setMinimizable(true);
+  win.setClosable(true);
+  win.setMenuBarVisibility(false);
+  const shortcuts = [
+    "Alt+F4",
+    "CommandOrControl+W",
+    "CommandOrControl+R",
+    "F11",
+    "Escape"
+  ];
+  for (const key of shortcuts) {
+    globalShortcut.register(key, () => {
+    });
+  }
+  const registered = globalShortcut.register("Ctrl+Shift+Q", () => {
+    isQuittable = true;
+    app.quit();
+    win == null ? void 0 : win.close();
+    console.log("FIRED");
+  });
+  console.log("[shortcut] registered:", registered);
+}
+function exitKioskMode() {
+  if (!win) return;
+  win.setKiosk(false);
+  win.setFullScreen(false);
+  win.setMaximizable(true);
+  win.setClosable(true);
+  win.setMinimizable(true);
+  globalShortcut.unregisterAll();
+}
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
@@ -412,9 +452,9 @@ function createWindow() {
     flaggedKeys.forEach((key) => currentlyFlagged.add(key));
     if (newlyFlagged.length > 0) {
       console.log("[main] sending window-scan:", newlyFlagged.length);
-      win.webContents.send("window-scan", newlyFlagged);
+      win == null ? void 0 : win.webContents.send("window-scan", newlyFlagged);
     }
-    win.webContents.send("window-scan-status", { activeCount: flagged.length });
+    win == null ? void 0 : win.webContents.send("window-scan-status", { activeCount: flagged.length });
   }, 3e3);
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
@@ -422,7 +462,7 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
   win.on("leave-full-screen", () => win == null ? void 0 : win.setFullScreen(true));
-  win.on("blur", () => win.focus());
+  win == null ? void 0 : win.on("blur", () => win.focus());
 }
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
@@ -454,24 +494,6 @@ app.whenReady().then(() => {
     callback({ video: sources[0], audio: "loopback" });
   });
   createWindow();
-  const shortcuts = [
-    "Alt+F4",
-    "CommandOrControl+W",
-    "CommandOrControl+R",
-    "F11",
-    "Escape"
-  ];
-  for (const key of shortcuts) {
-    globalShortcut.register(key, () => {
-    });
-  }
-  const registered = globalShortcut.register("Ctrl+Shift+Q", () => {
-    isQuittable = true;
-    app.quit();
-    win.close();
-    console.log("FIRED");
-  });
-  console.log("[shortcut] registered:", registered);
   win.on("close", (e) => {
     if (isQuittable) return;
     e.preventDefault();
@@ -484,6 +506,12 @@ app.on("before-quit", () => {
 });
 ipcMain.on("session-start", () => {
   currentlyFlagged.clear();
+});
+ipcMain.on("enter-kiosk", () => {
+  enterKioskMode();
+});
+ipcMain.on("exit-kiosk", () => {
+  exitKioskMode();
 });
 export {
   MAIN_DIST,
