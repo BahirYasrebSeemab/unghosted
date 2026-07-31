@@ -385,11 +385,19 @@ let win;
 let isQuittable = true;
 function enterKioskMode() {
   if (!win) return;
+<<<<<<< HEAD
   win.setKiosk(true);
   win.setFullScreen(true);
   win.setResizable(true);
   win.setMaximizable(true);
   win.setMinimizable(true);
+=======
+  win.setKiosk(false);
+  win.setFullScreen(true);
+  win.setResizable(false);
+  win.setMaximizable(true);
+  win.setMinimizable(false);
+>>>>>>> 32919e056d44f9fe597f69a44a6b2e58ecaa05b4
   win.setClosable(true);
   win.setMenuBarVisibility(false);
   const shortcuts = [
@@ -426,18 +434,18 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname$1, "preload.mjs")
     },
-    kiosk: true,
-    fullscreen: true,
-    resizable: false,
-    maximizable: false,
+    kiosk: false,
+    fullscreen: false,
+    resizable: true,
+    maximizable: true,
     minimizable: false,
-    closable: false,
+    closable: true,
     autoHideMenuBar: false,
-    alwaysOnTop: true
+    alwaysOnTop: false
   });
   win.setMenuBarVisibility(false);
-  win.setKiosk(true);
-  win.setFullScreen(true);
+  win.setKiosk(false);
+  win.setFullScreen(false);
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });
