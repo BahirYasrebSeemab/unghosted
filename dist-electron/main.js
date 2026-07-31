@@ -383,6 +383,10 @@ function flagKey(w) {
 const currentlyFlagged = /* @__PURE__ */ new Set();
 let win;
 let isQuittable = true;
+if (process.platform === "linux" && process.env.XDG_SESSION_TYPE === "wayland") {
+  console.log("DETECTED OS:", process.platform, process.env.XDG_SESSION_TYPE);
+  app.commandLine.appendSwitch("enable-features", "UseOzonePlatform");
+}
 function enterKioskMode() {
   if (!win) return;
   win.setKiosk(false);

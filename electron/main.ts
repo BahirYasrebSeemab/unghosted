@@ -40,6 +40,15 @@ let win: BrowserWindow | null
 let isQuittable = true;
 let isLocked = false;
 
+if (
+  process.platform === 'linux' &&
+  process.env.XDG_SESSION_TYPE === 'wayland'
+) {
+  console.log("DETECTED OS:", process.platform, process.env.XDG_SESSION_TYPE)
+  // app.commandLine.appendSwitch('ozone-platform', 'wayland');
+  app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform');
+}
+
 function enterKioskMode() {
 	if (!win) return
 	isLocked = true

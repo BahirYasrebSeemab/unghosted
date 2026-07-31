@@ -663,14 +663,11 @@ export default function App() {
 
   const handleCameraPermission = useCallback(
     (_stream: MediaStream) => {
-      setHasCamera(true)
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then(startAudioMonitoring)
-        .catch(() => {})
+      setHasCamera(true);
+      startAudioMonitoring(_stream);
     },
     [startAudioMonitoring],
-  )
+  );
 
   const startSession = () => {
     setIsSessionActive(true)
@@ -709,7 +706,9 @@ export default function App() {
     analyserRef.current = null;
 
     setGazeDeviation(null);
-    // setGazeDeviation(null)
+
+    setHasScreen(false);
+    setHasCamera(false);
   }
 
   const elapsedStr = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`
