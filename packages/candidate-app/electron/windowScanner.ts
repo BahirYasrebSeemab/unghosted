@@ -10,13 +10,6 @@ type HWND = unknown
 
 const WNDENUMPROC = koffi.proto('bool __stdcall WndEnumCallback(void*, intptr)')
 
-function getWindowTitleSafe(hwnd: HWND): string {
-  const buf = Buffer.alloc(512)
-  const len = GetWindowTextW(hwnd, buf, 256) as number
-  if (len === 0) return ''
-  return buf.toString('utf16le', 0, len * 2)
-}
-
 export type WindowFlagType = 'EXCLUDE_FROM_CAPTURE' | 'MONITOR_ONLY' | 'BLACKLISTED_NAME'
 
 export interface FlaggedWindow {
@@ -39,6 +32,15 @@ export function scanWindows(blacklist: string[] = []): FlaggedWindow[] {
   const IsWindowVisible = user32.func('bool IsWindowVisible(void* hWnd)')
   const GetWindowThreadProcessId = user32.func('uint32 GetWindowThreadProcessId(void* hWnd, _Out_ uint32* lpdwProcessId)')
 
+  // Defined here (not at module scope) so it can close over this call's
+  // GetWindowTextW binding — koffi.load()'d functions aren't shared across
+  // scanWindows() invocations.
+  function getWindowTitleSafe(hwnd: HWND): string {
+    const buf = Buffer.alloc(512)
+    const len = GetWindowTextW(hwnd, buf, 256) as number
+    if (len === 0) return ''
+    return buf.toString('utf16le', 0, len * 2)
+  }
 
   const flagged: FlaggedWindow[] = []
   const lowerBlacklist = blacklist.map((b) => b.toLowerCase())

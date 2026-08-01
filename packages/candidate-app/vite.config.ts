@@ -12,6 +12,20 @@ export default defineConfig({
       main: {
         // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              // koffi (and systeminformation, which it's imported alongside in
+              // windowScanner.ts) must stay external, not bundled: koffi locates
+              // its prebuilt native .node binary via a path relative to its OWN
+              // package directory at runtime. If Rollup inlines koffi's source
+              // into dist-electron/main.js, that lookup resolves relative to
+              // dist-electron/ instead, and koffi throws "Cannot find the
+              // native Koffi module" even though the binary is installed fine.
+              external: ['koffi', 'systeminformation'],
+            },
+          },
+        },
       },
       preload: {
         // Shortcut of `build.rollupOptions.input`.
