@@ -27,3 +27,10 @@ Check performance
 
 ##  Find real clients for UnGhosted
 Founders school should help with that, but cold emails can go now
+
+
+# Stuff we don't have for scalability
+- Pagination
+- id to uuid way of transformation for rooms
+
+
