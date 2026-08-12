@@ -36,6 +36,9 @@ func New(deps Dependencies) http.Handler {
 			r.Get("/", deps.RoomHandler.List)
 			r.Post("/{id}", deps.RoomHandler.Get)
 		})
+
+		r.Post("/users/SendCode", deps.AuthHandler.CreateTempUser)
+		r.Post("/users/login", deps.AuthHandler.CreateUser)
 	})
 
 	return r
