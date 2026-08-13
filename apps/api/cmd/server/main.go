@@ -14,6 +14,7 @@ import (
 	"go-server/internal/room"
 	"go-server/internal/router"
 	"go-server/internal/server"
+	"go-server/internal/config"
 	"github.com/joho/godotenv"
 
 	"flag"
@@ -23,11 +24,6 @@ import (
 
 const version = "1.0.0"
 
-// Config setting for app
-type config struct {
-	port int
-	env string
-}
 
 func main() {
 	if err := run(); err != nil {
@@ -37,14 +33,18 @@ func main() {
 }
 
 func run() error {
-	var cfg config;
-	flag.IntVar(&cfg.port, "port", 3000, "SERVER API PORT")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-	flag.Parse()
-
 	if err := godotenv.Load(); err != nil {
 		slog.Warn("no .env file found, using existing environment", "error", err)
 	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	flag.IntVar(&cfg.Port, "port", 3000, "SERVER API PORT")
+	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
+	flag.Parse()
 	
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -58,7 +58,12 @@ func run() error {
 	defer pool.Close()
 
 	authRepo := auth.NewRepository(pool)
-	authService := auth.NewUserService(authRepo)
+	authService := auth.NewUserService(
+		authRepo, 
+		cfg.JWTSecret, 
+		cfg.JWTAccessExpiration,
+		cfg.JWTRefreshExpiration,
+	)
 	authHandler := auth.NewUserHandler(authService)
 
 	roomRepo := room.NewRepository(pool)
@@ -71,11 +76,11 @@ func run() error {
 		RoomHandler: roomHandler,
 	})
 
-	srv := server.New(":"+strconv.Itoa(cfg.port), httpHandler)
+	srv := server.New(":"+strconv.Itoa(cfg.Port), httpHandler)
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("server is starting", "port", cfg.port, "env", cfg.env)
+		slog.Info("server is starting", "port", cfg.Port, "env", cfg.Env)
 		errCh <- srv.Start()
 	}()
 

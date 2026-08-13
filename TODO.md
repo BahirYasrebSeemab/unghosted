@@ -34,3 +34,8 @@ Founders school should help with that, but cold emails can go now
 - id to uuid way of transformation for rooms
 
 
+
+# Backend
+- Duplicate room verification
+- Interview as a separate entity that gets attached to room
+- Websocket connection between the two

@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrRefreshTokenNotFound = errors.New("refresh token not found")
 
 type UserRepository struct {
 	DB *pgxpool.Pool
@@ -19,9 +22,7 @@ func NewRepository(DB *pgxpool.Pool) *UserRepository {
 	}
 }
 
-func (r *UserRepository) CreateUser(user User) error {
-	ctx := context.Background()
-
+func (r *UserRepository) CreateUser(ctx context.Context, user User) error {
 	fmt.Println(user.Name, " ", user.Email, " ", user.Password, " ", user.Companies)
 
 	_, err := r.DB.Exec(ctx, `INSERT INTO users
@@ -42,11 +43,17 @@ func (r *UserRepository) CreateUser(user User) error {
 	return nil
 }
 
-func (r *UserRepository) CreateTempUser(tempUser Temp_user) error {
+// Registration consists of two parts: 
+// CreatingTempUser -> Sending code to gmail
+// -> Creating real user
+
+func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 	ctx := context.Background()
 
 	var Email string
-	err := r.DB.QueryRow(ctx, `SELECT Email FROM temp_users WHERE Email = $1`, tempUser.Email).Scan(&Email)
+	err := r.DB.QueryRow(ctx, 
+		`SELECT Email FROM temp_users WHERE Email = $1`, tempUser.Email).
+		Scan(&Email)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
@@ -57,7 +64,9 @@ func (r *UserRepository) CreateTempUser(tempUser Temp_user) error {
 
 	Email = ""
 
-	err = r.DB.QueryRow(ctx, `SELECT Email FROM users WHERE Email = $1`, tempUser.Email).Scan(&Email)
+	err = r.DB.QueryRow(ctx, 
+		`SELECT Email FROM users WHERE Email = $1`, tempUser.Email).
+		Scan(&Email)
 
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
@@ -83,7 +92,9 @@ func (r *UserRepository) FindCode(ConfirmEmail string) (int, error) {
 
 	var Code int
 
-	err := r.DB.QueryRow(ctx, `SELECT Code FROM temp_users WHERE Email = $1`, ConfirmEmail).Scan(&Code)
+	err := r.DB.QueryRow(ctx, 
+		`SELECT Code FROM temp_users WHERE Email = $1`, ConfirmEmail).
+		Scan(&Code)
 
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return 0, err
@@ -96,18 +107,83 @@ func (r *UserRepository) FindCode(ConfirmEmail string) (int, error) {
 	return Code, nil
 }
 
-func (r *UserRepository) GetUsersData(UserEmail string) (User, error) {
-	ctx := context.Background()
-
+// Search user in database by email
+// No user with such email -> empty User, err
+// Found -> return found user (type User)
+func (r *UserRepository) GetUsersData(ctx context.Context, UserEmail string) (*User, error) {
 	var user User
 
-	err := r.DB.QueryRow(ctx, `SELECT Name , Email , Password FROM temp_users WHERE Email = $1`, UserEmail).
+	err := r.DB.QueryRow(ctx, 
+		`SELECT Name , Email , Password FROM temp_users WHERE Email = $1`, UserEmail).
+		Scan(&user.Name, &user.Email, &user.Password)
+
+	if err != nil {
+		return &User{}, err
+	}
+
+	return &user, nil
+}
+
+func (r *UserRepository) GetRealUser(ctx context.Context, UserEmail string) (User, error) {
+	var user User
+
+	err := r.DB.QueryRow(ctx, 
+		`SELECT Name, Email, Password FROM users WHERE Email = $1`, UserEmail).
 		Scan(&user.Name, &user.Email, &user.Password)
 
 	if err != nil {
 		return User{}, err
 	}
 
-	return user, err
+	return user, nil
 }
 
+// func (r *UserRepository) Login(userEmail, refreshToken string) (error) {=
+// 	ctx := contextcontext.Background()
+//
+// 	var user User
+//
+// 	err := r.DB.QueryRow
+// }
+
+func (r *UserRepository) StoreRefreshToken(ctx context.Context, email string, tokenHash string, expiresAt time.Time) error {
+	const query = `
+		INSERT INTO refresh_tokens(email, token_hash, expires_at)
+		VALUES ($1, $2, $3)`
+	
+	_, err := r.DB.Exec(ctx, query, email, tokenHash, expiresAt)
+	return err
+}
+
+func (r *UserRepository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
+	ErrRefreshTokenNotFound := errors.New("Refresh token not found")
+	const query = `
+		SELECT id, email, token_hash, expires_at, revoked_at, create_at
+		FROM refresh_tokens
+		WHERE token_hash = $1
+	`
+
+	var rt RefreshToken
+	err := r.DB.QueryRow(ctx, query, tokenHash).
+		Scan(&rt.ID, &rt.Email, &rt.TokenHash, &rt.ExpiresAt, &rt.RevokedAt, &rt.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRefreshTokenNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	
+	return &rt, nil
+}
+
+func (r *UserRepository) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
+	const query = `
+		UPDATE refresh_tokens
+		SET revoked_at = now()
+		WHERE token_hash = $1
+	`
+
+	_, err := r.DB.Exec(ctx, query, tokenHash)
+	return err
+}
