@@ -17,17 +17,17 @@ import (
 )
 
 type UserService struct {
-	repo *UserRepository
-	jwtSecret []byte
+	repo                 *UserRepository
+	jwtSecret            []byte
 	jwtRefreshExpiration time.Duration
-	jwtAccessExpiration time.Duration
+	jwtAccessExpiration  time.Duration
 }
 
-func NewUserService(repo *UserRepository, jwtSecret string, jwtAccessExpiration time.Duration,jwtRefreshExpiration time.Duration) *UserService {
+func NewUserService(repo *UserRepository, jwtSecret string, jwtAccessExpiration time.Duration, jwtRefreshExpiration time.Duration) *UserService {
 	return &UserService{
-		repo: repo,
-		jwtSecret:	[]byte(jwtSecret),
-		jwtAccessExpiration: jwtAccessExpiration,
+		repo:                 repo,
+		jwtSecret:            []byte(jwtSecret),
+		jwtAccessExpiration:  jwtAccessExpiration,
 		jwtRefreshExpiration: jwtRefreshExpiration,
 	}
 }
@@ -118,7 +118,7 @@ func (s *UserService) Login(ctx context.Context, loginRequest LogInData) (*AuthR
 	// if err != nil {
 	// 	return nil, fmt.Errorf("Error hashing email")
 	// }
-	
+
 	accessTokenString, err := s.issueToken(loginRequest.Email)
 	fmt.Print("JWT TOKENS created!!", accessTokenString)
 
@@ -135,17 +135,17 @@ func (s *UserService) Login(ctx context.Context, loginRequest LogInData) (*AuthR
 	if err := s.repo.StoreRefreshToken(ctx, usr.Email, refreshTokenHash, time.Now().Add(s.jwtRefreshExpiration)); err != nil {
 		return nil, apierr.Internal(err)
 	}
-	
+
 	return &AuthResponse{
-		Token:	accessTokenString,
+		Token:        accessTokenString,
 		RefreshToken: refreshTokenRaw,
-		User: 	usr,
+		User:         usr,
 	}, nil
 
 }
 
 func (s *UserService) issueToken(cachedMessage string) (string, error) {
-	claimsAccessToken := jwt.MapClaims {
+	claimsAccessToken := jwt.MapClaims{
 		"sub": cachedMessage,
 		"exp": time.Now().Add(s.jwtAccessExpiration).Unix(),
 		"iat": time.Now().Unix(),
@@ -198,53 +198,44 @@ func (s *UserService) generateRefreshToken() (raw string, hash string, err error
 	return raw, hash, nil
 }
 
-func (s *UserService) Refresh(ctx context.Context, rawToken string) (*AuthResponse, error) {
+func (s *UserService) Refresh(ctx context.Context, rawToken string) (string, error) {
 	sum := sha256.Sum256([]byte(rawToken))
 	hash := hex.EncodeToString(sum[:])
 
 	stored, err := s.repo.GetRefreshToken(ctx, hash)
 	if errors.Is(err, ErrRefreshTokenNotFound) {
-		return nil, apierr.Unauthorized("invalid refresh token", nil)
+		return "", apierr.Unauthorized("invalid refresh token", nil)
 	}
 
 	if err != nil {
-		return nil, apierr.Internal(err)
+		return "", apierr.Internal(err)
 	}
 
 	if stored.RevokedAt != nil {
-		return nil, apierr.Unauthorized("Refresh token has been revoked", nil)
+		return "", apierr.Unauthorized("Refresh token has been revoked", nil)
 	}
 
 	if time.Now().After(stored.ExpiresAt) {
-		return nil, apierr.Unauthorized("refresh token has expired", nil)
+		return "", apierr.Unauthorized("refresh token has expired", nil)
 	}
 
 	hashedEmail, err := hashing.CreateHash(stored.Email)
 	if err != nil {
-		return nil, apierr.Internal(err)
+		return "", apierr.Internal(err)
 	}
 
 	newAccessToken, err := s.issueToken(hashedEmail)
 	if err != nil {
-		return nil, apierr.Internal(err)
+		return "", apierr.Internal(err)
 	}
 
-	newRefreshTokenRaw, newRefreshTokenHash, err := s.generateRefreshToken()
+	return newAccessToken, nil
+}
 
-	if err != nil {
-		return nil,apierr.Internal(err)
-	}
+func (s *UserService) LogOut(ctx context.Context, rawToken string) error {
+	sum := sha256.Sum256([]byte(rawToken))
+	hash := hex.EncodeToString(sum[:])
 
-	if err := s.repo.StoreRefreshToken(
-		ctx, 
-		stored.Email, 
-		newRefreshTokenHash, 
-		time.Now().Add(s.jwtRefreshExpiration)); err != nil {
-			return nil, apierr.Internal(err)
-		}
-
-		return &AuthResponse{
-			Token: newAccessToken,
-			RefreshToken: newRefreshTokenRaw,
-		}, nil
+	err := s.repo.LogOut(ctx, hash)
+	return err
 }

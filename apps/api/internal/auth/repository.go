@@ -43,7 +43,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user User) error {
 	return nil
 }
 
-// Registration consists of two parts: 
+// Registration consists of two parts:
 // CreatingTempUser -> Sending code to gmail
 // -> Creating real user
 
@@ -51,7 +51,7 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 	ctx := context.Background()
 
 	var Email string
-	err := r.DB.QueryRow(ctx, 
+	err := r.DB.QueryRow(ctx,
 		`SELECT Email FROM temp_users WHERE Email = $1`, tempUser.Email).
 		Scan(&Email)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -64,7 +64,7 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 
 	Email = ""
 
-	err = r.DB.QueryRow(ctx, 
+	err = r.DB.QueryRow(ctx,
 		`SELECT Email FROM users WHERE Email = $1`, tempUser.Email).
 		Scan(&Email)
 
@@ -92,7 +92,7 @@ func (r *UserRepository) FindCode(ConfirmEmail string) (int, error) {
 
 	var Code int
 
-	err := r.DB.QueryRow(ctx, 
+	err := r.DB.QueryRow(ctx,
 		`SELECT Code FROM temp_users WHERE Email = $1`, ConfirmEmail).
 		Scan(&Code)
 
@@ -113,7 +113,7 @@ func (r *UserRepository) FindCode(ConfirmEmail string) (int, error) {
 func (r *UserRepository) GetUsersData(ctx context.Context, UserEmail string) (*User, error) {
 	var user User
 
-	err := r.DB.QueryRow(ctx, 
+	err := r.DB.QueryRow(ctx,
 		`SELECT Name , Email , Password FROM temp_users WHERE Email = $1`, UserEmail).
 		Scan(&user.Name, &user.Email, &user.Password)
 
@@ -127,7 +127,7 @@ func (r *UserRepository) GetUsersData(ctx context.Context, UserEmail string) (*U
 func (r *UserRepository) GetRealUser(ctx context.Context, UserEmail string) (User, error) {
 	var user User
 
-	err := r.DB.QueryRow(ctx, 
+	err := r.DB.QueryRow(ctx,
 		`SELECT Name, Email, Password FROM users WHERE Email = $1`, UserEmail).
 		Scan(&user.Name, &user.Email, &user.Password)
 
@@ -148,9 +148,9 @@ func (r *UserRepository) GetRealUser(ctx context.Context, UserEmail string) (Use
 
 func (r *UserRepository) StoreRefreshToken(ctx context.Context, email string, tokenHash string, expiresAt time.Time) error {
 	const query = `
-		INSERT INTO refresh_tokens(email, token_hash, expires_at)
+		INSERT INTO refresh_tokens(Email, Token_hash, Expires_at)
 		VALUES ($1, $2, $3)`
-	
+
 	_, err := r.DB.Exec(ctx, query, email, tokenHash, expiresAt)
 	return err
 }
@@ -158,9 +158,9 @@ func (r *UserRepository) StoreRefreshToken(ctx context.Context, email string, to
 func (r *UserRepository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
 	ErrRefreshTokenNotFound := errors.New("Refresh token not found")
 	const query = `
-		SELECT id, email, token_hash, expires_at, revoked_at, create_at
+		SELECT Id, Email, Token_hash, Expires_at, Revoked_at, Created_at
 		FROM refresh_tokens
-		WHERE token_hash = $1
+		WHERE Token_hash = $1
 	`
 
 	var rt RefreshToken
@@ -173,15 +173,13 @@ func (r *UserRepository) GetRefreshToken(ctx context.Context, tokenHash string) 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &rt, nil
 }
 
-func (r *UserRepository) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
+func (r *UserRepository) LogOut(ctx context.Context, tokenHash string) error {
 	const query = `
-		UPDATE refresh_tokens
-		SET revoked_at = now()
-		WHERE token_hash = $1
+		DELETE FROM refresh_tokens WHERE Token_hash = $1
 	`
 
 	_, err := r.DB.Exec(ctx, query, tokenHash)

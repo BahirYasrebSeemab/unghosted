@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"go-server/internal/pkg/httputil"
 	"net/http"
 )
@@ -61,6 +62,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// email, password
 	var LoginRequest LogInData
+	var user User
 
 	if err := httputil.DecodeJSON(r, &LoginRequest); err != nil {
 		httputil.Error(w, err)
@@ -73,23 +75,72 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, resp)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    resp.Token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 60,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    resp.RefreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 21600,
+	})
+
+	httputil.JSON(w, http.StatusOK, user)
 }
+
 // refresh token should be inserted into database, and user moved from temp to real user
 
 func (h *UserHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	var req RefreshRequest
-
-	if err := httputil.DecodeJSON(r, &req); err != nil {
-		httputil.Error(w, err)
+	refresh_token, err := r.Cookie("refresh_token")
+	fmt.Println("ALL COOKIES:", r.Cookies())
+	if err != nil {
+		http.Error(w, "refresh token cookie not found", http.StatusUnauthorized)
 		return
 	}
 
-	resp, err := h.service.Refresh(r.Context(), req.RefreshToken)
+	resp, err := h.service.Refresh(r.Context(), refresh_token.Value)
 	if err != nil {
 		httputil.Error(w, err)
+		fmt.Println(err)
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, resp)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    resp,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 21600,
+	})
+
+	w.Write([]byte("New refresh token created"))
+}
+
+func (h *UserHandler) LogOut(w http.ResponseWriter, r *http.Request) {
+	refresh_token, err := r.Cookie("refresh_token")
+
+	if err != nil {
+		httputil.Error(w, err)
+	}
+
+	err = h.service.LogOut(r.Context(), refresh_token.Value)
+	if err != nil {
+		httputil.Error(w, err)
+		fmt.Println(err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, nil)
 }

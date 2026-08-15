@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"os"
+
 	_ "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -59,7 +60,7 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 			Finish_time TIMESTAMPTZ
 		)
 	`)
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}

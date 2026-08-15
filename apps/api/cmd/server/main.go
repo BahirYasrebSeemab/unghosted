@@ -10,11 +10,12 @@ import (
 
 	// _ "server"
 	"go-server/internal/auth"
-	"go-server/internal/database"
+	"go-server/internal/config"
+	db "go-server/internal/database"
 	"go-server/internal/room"
 	"go-server/internal/router"
 	"go-server/internal/server"
-	"go-server/internal/config"
+
 	"github.com/joho/godotenv"
 
 	"flag"
@@ -23,7 +24,6 @@ import (
 )
 
 const version = "1.0.0"
-
 
 func main() {
 	if err := run(); err != nil {
@@ -45,7 +45,7 @@ func run() error {
 	flag.IntVar(&cfg.Port, "port", 3000, "SERVER API PORT")
 	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
 	flag.Parse()
-	
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -59,8 +59,8 @@ func run() error {
 
 	authRepo := auth.NewRepository(pool)
 	authService := auth.NewUserService(
-		authRepo, 
-		cfg.JWTSecret, 
+		authRepo,
+		cfg.JWTSecret,
 		cfg.JWTAccessExpiration,
 		cfg.JWTRefreshExpiration,
 	)
