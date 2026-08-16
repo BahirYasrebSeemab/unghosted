@@ -10,6 +10,7 @@ import (
 
 	// _ "server"
 	"go-server/internal/auth"
+	"go-server/internal/companies"
 	"go-server/internal/config"
 	db "go-server/internal/database"
 	"go-server/internal/room"
@@ -70,10 +71,15 @@ func run() error {
 	roomService := room.NewRoomService(roomRepo)
 	roomHandler := room.NewRoomHandler(roomService)
 
+	companyRepo := companies.NewRepository(pool)
+	companyService := companies.NewCompanyService(companyRepo)
+	companyHandler := companies.NewCompanyHandler(companyService)
+
 	httpHandler := router.New(router.Dependencies{
-		AuthHandler: authHandler,
-		AuthService: authService,
-		RoomHandler: roomHandler,
+		AuthHandler:    authHandler,
+		AuthService:    authService,
+		RoomHandler:    roomHandler,
+		CompanyHandler: companyHandler,
 	})
 
 	srv := server.New(":"+strconv.Itoa(cfg.Port), httpHandler)

@@ -18,7 +18,7 @@ import (
 
 type UserService struct {
 	repo                 *UserRepository
-	jwtSecret            []byte
+	JWTSecret            []byte
 	jwtRefreshExpiration time.Duration
 	jwtAccessExpiration  time.Duration
 }
@@ -26,7 +26,7 @@ type UserService struct {
 func NewUserService(repo *UserRepository, jwtSecret string, jwtAccessExpiration time.Duration, jwtRefreshExpiration time.Duration) *UserService {
 	return &UserService{
 		repo:                 repo,
-		jwtSecret:            []byte(jwtSecret),
+		JWTSecret:            []byte(jwtSecret),
 		jwtAccessExpiration:  jwtAccessExpiration,
 		jwtRefreshExpiration: jwtRefreshExpiration,
 	}
@@ -155,7 +155,7 @@ func (s *UserService) issueToken(cachedMessage string) (string, error) {
 
 	// refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claimsRefreshToken)
 
-	accessTokenString, err := accessToken.SignedString(s.jwtSecret)
+	accessTokenString, err := accessToken.SignedString(s.JWTSecret)
 
 	if err != nil {
 		return "", err
@@ -166,7 +166,7 @@ func (s *UserService) issueToken(cachedMessage string) (string, error) {
 
 func (s *UserService) ValidateToken(tokenString string) (email string, err error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (any, error) {
-		return s.jwtSecret, nil
+		return s.JWTSecret, nil
 	})
 
 	if err != nil || !token.Valid {

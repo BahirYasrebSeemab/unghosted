@@ -62,7 +62,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// email, password
 	var LoginRequest LogInData
-	var user User
 
 	if err := httputil.DecodeJSON(r, &LoginRequest); err != nil {
 		httputil.Error(w, err)
@@ -76,16 +75,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    resp.Token,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60 * 60,
-	})
-
-	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    resp.RefreshToken,
 		Path:     "/",
@@ -95,7 +84,9 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   60 * 21600,
 	})
 
-	httputil.JSON(w, http.StatusOK, user)
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token": resp.Token,
+	})
 }
 
 // refresh token should be inserted into database, and user moved from temp to real user

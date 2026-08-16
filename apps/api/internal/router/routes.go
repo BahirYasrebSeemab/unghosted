@@ -6,14 +6,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"go-server/internal/room"
 	"go-server/internal/auth"
+	"go-server/internal/companies"
+	Ourmiddleware "go-server/internal/middleware"
+	"go-server/internal/room"
 )
 
 type Dependencies struct {
-	AuthHandler *auth.UserHandler
-	AuthService *auth.UserService
-	RoomHandler *room.RoomHandler
+	AuthHandler    *auth.UserHandler
+	AuthService    *auth.UserService
+	RoomHandler    *room.RoomHandler
+	CompanyHandler *companies.CompanyHandler
 }
 
 func New(deps Dependencies) http.Handler {
@@ -42,11 +45,21 @@ func New(deps Dependencies) http.Handler {
 
 		r.Post("/users/login", deps.AuthHandler.Login)
 		r.Post("/auth/refresh", deps.AuthHandler.Refresh)
-		
+
+		r.Route("/companies", func(r chi.Router) {
+			r.Use(Ourmiddleware.AuthMiddleware(deps.AuthService))
+			r.Post("/create", deps.CompanyHandler.CreateCompany)
+			r.Delete("/delete", deps.CompanyHandler.DeleteCompany)
+			r.Patch("/reduceBalance", deps.CompanyHandler.ReduceBalance)
+			r.Patch("/increaseBalance", deps.CompanyHandler.IncreaseBalance)
+			r.Patch("/updateName", deps.CompanyHandler.UpdateCompanyName)
+			r.Post("/addAdmin", deps.CompanyHandler.AddAdmin)
+			r.Post("/addHr", deps.CompanyHandler.AddHr)
+		})
+
 		// Register new user
 		// r.Post("/users/register", deps.AuthHandler.CreateTempUser)
 	})
 
 	return r
 }
-

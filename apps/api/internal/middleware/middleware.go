@@ -1,68 +1,76 @@
-package middleware
+package Ourmiddleware
 
 import (
 	"context"
-	"go-server/internal/config"
+	"fmt"
+	"go-server/internal/auth"
 	"go-server/internal/errors/apierr"
-	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/joho/godotenv"
 )
 
-func AuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func AuthMiddleware(userService *auth.UserService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		authHeader := r.Header.Get("Authorization")
+			authHeader := r.Header.Get("Authorization")
 
-		// Bearer <token>
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				http.Error(w, "Unauthorized4", http.StatusUnauthorized)
+				return
+			}
 
-		claims, err := ValidateToken(tokenString)
-		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		// например, передаем userID дальше
-		ctx := context.WithValue(
-			r.Context(),
-			"Email",
-			claims,
-		)
+			email, err := userService.ValidateToken(tokenString)
+			if err != nil {
+				http.Error(w, "Unauthorized5", http.StatusUnauthorized)
+				return
+			}
 
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+			ctx := context.WithValue(
+				r.Context(),
+				"Email",
+				email,
+			)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
-func ValidateToken(tokenString string) (email string, err error) {
-	if err := godotenv.Load(); err != nil {
-		slog.Warn("no .env file found, using existing environment", "error", err)
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return "", err
-	}
-
+func ValidateToken(tokenString string, jwtSecret []byte) (string, error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (any, error) {
-		return []byte(cfg.JWTSecret), nil
+		if t.Method != jwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+
+		return jwtSecret, nil
 	})
 
 	if err != nil || !token.Valid {
-		return "", apierr.Unauthorized("Invalid or expired JWT token", err)
+		return "", apierr.Unauthorized(
+			"Invalid or expired JWT token",
+			err,
+		)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", apierr.Unauthorized("Invalid token claims", nil)
+		return "", apierr.Unauthorized(
+			"Invalid token claims",
+			nil,
+		)
 	}
 
 	sub, ok := claims["sub"].(string)
 	if !ok || sub == "" {
-		return "", apierr.Unauthorized("Invalid token subject", nil)
+		return "", apierr.Unauthorized(
+			"Invalid token subject",
+			nil,
+		)
 	}
 
 	return sub, nil
