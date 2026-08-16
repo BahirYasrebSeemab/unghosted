@@ -158,7 +158,7 @@ func (r *UserRepository) StoreRefreshToken(ctx context.Context, email string, to
 func (r *UserRepository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
 	ErrRefreshTokenNotFound := errors.New("Refresh token not found")
 	const query = `
-		SELECT id, email, token_hash, expires_at, revoked_at, create_at
+		SELECT id, email, token_hash, expires_at, revoked_at, created_at
 		FROM refresh_tokens
 		WHERE token_hash = $1
 	`

@@ -39,3 +39,10 @@ Founders school should help with that, but cold emails can go now
 - Duplicate room verification
 - Interview as a separate entity that gets attached to room
 - Websocket connection between the two
+
+- insert jwt in to headers
+- auth middleware
+- (?) JWT access tokens Postgres -> Redis
+- Company logic
+- WebSockets (Roleplay: are you taking or giving ?) Rooms
+

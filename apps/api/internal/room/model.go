@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"net/http"
 )
 
 type RoomState string
@@ -14,6 +16,14 @@ const (
 	StateEnded 		RoomState = "ended"
 )
 
+var upgrader = websocket.Upgrader {
+	ReadBufferSize: 1024 * 4,
+	WriteBufferSize: 1024 * 4,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
 // var stateName = map[RoomState]string{
 // 	StateScheduled: 	"scheduled",
 // 	StateActive: 		"active",
@@ -23,7 +33,26 @@ const (
 // func (ss RoomState) String() string {
 // 	return stateName[ss]
 // }
-//
+
+// Websocket model
+type Hub struct {
+	clients map[*Client]bool
+
+	broadcast chan []byte
+
+	join chan *Client
+
+	leave chan *Client
+}
+
+type Client struct {
+	hub *Hub
+
+	conn *websocket.Conn
+
+	send chan []byte
+}
+
 type Room struct {
 	ID				uuid.UUID `json:"id"`
 	// OrgID	 uuid.UUID `json:"OrgID"`

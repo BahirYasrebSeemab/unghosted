@@ -40,12 +40,6 @@ func CreateHash(password string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(hash),
 	)
 
-	// return fmt.Sprintf(
-	// 	"%x:%x",
-	// 	salt,
-	// 	hash,
-	// ), nil
-
 	return encoded, nil
 }
 

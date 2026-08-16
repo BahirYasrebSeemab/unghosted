@@ -15,6 +15,7 @@ import (
 	"go-server/internal/router"
 	"go-server/internal/server"
 	"go-server/internal/config"
+	"go-server/internal/signaling"
 	"github.com/joho/godotenv"
 
 	"flag"
@@ -23,7 +24,6 @@ import (
 )
 
 const version = "1.0.0"
-
 
 func main() {
 	if err := run(); err != nil {
@@ -70,10 +70,21 @@ func run() error {
 	roomService := room.NewRoomService(roomRepo)
 	roomHandler := room.NewRoomHandler(roomService)
 
+	// Instead of service to not over-engineer = just hub and newHub
+	// hub := viewer.NewHub()
+	// go hub.Run()
+	// viewerWsHandler := viewer.NewViewerWsHandler(hub)
+
+	hub := signaling.NewHub()
+	go hub.Run()
+
+	signalingHandler := signaling.NewHandler(hub)
+
 	httpHandler := router.New(router.Dependencies{
 		AuthHandler: authHandler,
 		AuthService: authService,
 		RoomHandler: roomHandler,
+		SignalingHandler: signalingHandler,
 	})
 
 	srv := server.New(":"+strconv.Itoa(cfg.Port), httpHandler)

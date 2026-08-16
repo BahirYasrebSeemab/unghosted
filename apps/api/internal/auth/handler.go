@@ -75,7 +75,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	httputil.JSON(w, http.StatusOK, resp)
 }
-// refresh token should be inserted into database, and user moved from temp to real user
 
 func (h *UserHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req RefreshRequest

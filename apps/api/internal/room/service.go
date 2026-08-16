@@ -29,7 +29,6 @@ func NewRoomService(repo *RoomRepository) *RoomService {
 }
 
 func (s *RoomService) CreateRoom(ctx context.Context, req CreateRoomRequest) (*Room, error) {
-
 	if (req.CandidateName == "") {
 		return nil, apierr.Validation("candidate name is required", nil)
 	}
@@ -76,8 +75,13 @@ func (s *RoomService) ListRooms(ctx context.Context) ([]Room, error) {
 	return rooms, nil
 }
 
-func (s *RoomService) GetByID(ctx context.Context, id uuid.UUID) (*Room, error) {
-	room, err := s.repo.GetByID(ctx, id)
+func (s *RoomService) GetByID(ctx context.Context, id string) (*Room, error) {
+	roomID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, apierr.Validation("Invalid room id", err)
+	}
+
+	room, err := s.repo.GetByID(ctx, roomID)
 
 	if errors.Is(err, ErrRoomNotFound) {
 		return nil, apierr.NotFound("Room not found", nil)
@@ -89,3 +93,21 @@ func (s *RoomService) GetByID(ctx context.Context, id uuid.UUID) (*Room, error) 
 
 	return room, nil
 }
+
+func (s *RoomService) GetByJoinCode(ctx context.Context, joinCode string) (*Room, error) {
+	room, err := s.repo.GetByJoinCode(ctx, joinCode)
+
+	if (errors.Is(err, ErrRoomNotFound)) {
+		return nil, apierr.NotFound("Room not found", nil)
+	}
+
+	if err != nil {
+		return nil, apierr.Internal(err)
+	}
+
+	return room, nil
+}
+
+// func (s *RoomService) ConnectToRoom(ctx context.Context, joinCode string) (*Room, error) {
+//
+// }

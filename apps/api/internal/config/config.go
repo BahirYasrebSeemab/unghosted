@@ -10,6 +10,9 @@ import (
 type Config struct {
 	Port		int	
 	Env			string
+	Cert 		string
+	Key			string
+
 	JWTSecret	string
 	JWTAccessExpiration	time.Duration
 	JWTRefreshExpiration time.Duration

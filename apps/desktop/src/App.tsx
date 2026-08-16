@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ConcentrationMonitor, type ConcentrationReading } from "./concentrationMonitor"
-import { scanWindows } from "../electron/windowScanner"
+import { scanWindows } from "../electron/windowScanner";
+import { parseArgs } from "util";
+
+import VideoRoom from "./components/VideoRoom.tsx";
 
 type Severity = "info" | "warning" | "critical"
 
@@ -371,6 +374,8 @@ export default function App() {
   const lastKeystrokeRef = useRef<number>(0)
   const gazeAlertCooldownRef = useRef(0);
 
+  const [ hcToken, setHcToken] = useState("");
+
   const [hasScreen, setHasScreen] = useState(false);
   
   const handleScreenPermission = useCallback((_stream: MediaStream) => {
@@ -422,6 +427,22 @@ export default function App() {
 
   // Session timer
   useEffect(() => {
+    // const { values, positionals } = parseArgs({
+    //   args: Bun.argv,
+    //   options: {
+    //     token: {
+    //       type: "string",
+    //     }
+    //   },
+    //   strict: true,
+    //   allowPositionals: true
+    // })
+    //
+    // if (values.token) {
+    //   setHcToken(values.token)
+    //   console.log(values.token)
+    // }
+
     if (!isSessionActive) return
     const t = setInterval(() => setElapsed((s) => s + 1), 1000)
     return () => clearInterval(t)
@@ -798,6 +819,12 @@ export default function App() {
               hasPermission={hasCamera}
               onPermission={handleCameraPermission}
               onReading={handleReading}
+            />
+
+            <VideoRoom
+              // TODO or TONOTICE: hardcoded roomID
+              roomId="aa85e2e3-a5d6-4eb6-af88-badf9e395953"
+              token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODY5MjA0MTgsImlhdCI6MTc4NjkxNjgxOCwic3ViIjoiJGFyZ29uMmlkJHY9MTkkbT02NTUzNix0PTEscD00JDBTZlBVRzM1QUplTnEwU1cxVzVzemckVWVCVFRHbTZMRm1HbFlWRzBNNDNTc3BOZy9WcG1XNzBvazRIMnpRS3FnMCJ9.6so0YyrTGMiwP1ntUKZBzsHHjCl1f8FND5F2nQWZW8o"
             />
             <div>
             <div className="flex items-center justify-between mb-2">

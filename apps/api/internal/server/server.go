@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"net/http"
+	
+	// "go-server/internal/pkg/webrtc"
 )
 
 type Server struct {
@@ -18,12 +20,18 @@ func New(addr string, handler http.Handler) *Server {
 	}
 }
 
+// func (s *Server) startWebsocket() {
+// 	webrtc.DispatchKeyFrame()
+// 	if ()
+// }
+
 func (s *Server) Start() error {
 	err := s.httpServer.ListenAndServe()
 	if err == http.ErrServerClosed {
 		return nil
-	}
+	}	
 
+	// go s.startWebsocket()
 	return err
 }
 

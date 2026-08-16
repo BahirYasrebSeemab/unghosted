@@ -5,8 +5,10 @@ import (
 	"errors"
 	_ "fmt"
 	_ "go-server/internal/utils/randomString"
+	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,6 +20,7 @@ type Repository interface {
 	CreateRoom(ctx context.Context, candidateName string) (*Room, error)
 	ListRooms(ctx context.Context) ([]Room, error)
 	GetByID(ctx context.Context, id string)
+	GetByJoinCode(ctx context.Context, join_code string) (*Room, error)
 }
 
 type RoomRepository struct {
@@ -89,6 +92,7 @@ func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, erro
 	const query = `
 		SELECT id, candidate_name, created_at, status, created_by,
 			   started_at, ended_at, join_code, role
+		FROM rooms
 		WHERE id = $1
 	`
 
@@ -100,6 +104,32 @@ func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, erro
 			 )
 
 	if err != nil {
+		return nil, err
+	}
+
+	return &room, nil
+}
+
+func (r *RoomRepository) GetByJoinCode(ctx context.Context, joinCode string) (*Room, error) {
+	const query = `
+		SELECT id, candidate_name, created_at, status, created_by,
+			   started_at, ended_at, join_code, role
+		FROM rooms
+		WHERE join_code = $1
+	`
+
+	var room Room
+	err := r.DB.QueryRow(ctx, query, joinCode).
+			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
+				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+			 )
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
+	
+	if err != nil {
+		slog.Error("Error from inside GetByJoinCode")
 		return nil, err
 	}
 
