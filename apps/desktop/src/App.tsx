@@ -824,7 +824,7 @@ export default function App() {
             <VideoRoom
               // TODO or TONOTICE: hardcoded roomID
               roomId="aa85e2e3-a5d6-4eb6-af88-badf9e395953"
-              token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODY5MjA0MTgsImlhdCI6MTc4NjkxNjgxOCwic3ViIjoiJGFyZ29uMmlkJHY9MTkkbT02NTUzNix0PTEscD00JDBTZlBVRzM1QUplTnEwU1cxVzVzemckVWVCVFRHbTZMRm1HbFlWRzBNNDNTc3BOZy9WcG1XNzBvazRIMnpRS3FnMCJ9.6so0YyrTGMiwP1ntUKZBzsHHjCl1f8FND5F2nQWZW8o"
+              token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODY5OTI2NTUsImlhdCI6MTc4Njk4OTA1NSwic3ViIjoiJGFyZ29uMmlkJHY9MTkkbT02NTUzNix0PTEscD00JFYrMjJPekVpZFNFSjY1M0doaTVlM1EkaFRXNjA1Y0kxdWxKQmVCRFZ2cjBEVkZsN2lUdXYyZnpuS2E1eCtoL1g5USJ9.ZN9nj4Ehjs7yQqaGJ24O8B7FwVQLW5JNG4mFrxfLJPU"
             />
             <div>
             <div className="flex items-center justify-between mb-2">

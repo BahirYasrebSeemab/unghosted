@@ -20,7 +20,10 @@ export default class SignalingClient {
 
   
   constructor(roomId: string, token: string) {
-    this.ws = new WebSocket(`ws://localhost:3000/v1/room/${roomId}/ws?token=${token}`);
+    let urlPublic = `wss://compactly-tank-bonded.ngrok-free.dev/v1/room/${roomId}/ws?token=${token}`;
+    // let urlHome = `ws://localhost:3000/v1/room/${roomId}/ws?token=${token}`;
+
+    this.ws = new WebSocket(urlPublic)
     // this.ws.onopen = () => this.send({ type: 'join', from: '' });
     this.ws.onmessage = (event) => this.handleMessage(JSON.parse(event.data));
     // this.onOffer = null;
