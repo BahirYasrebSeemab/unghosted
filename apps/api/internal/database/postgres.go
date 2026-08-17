@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"os"
+
 	_ "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -59,7 +60,7 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 			Finish_time TIMESTAMPTZ
 		)
 	`)
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,7 +81,8 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS Companies(
-			Name TEXT NOT NULL PRIMARY KEY,
+			Id SERIAL PRIMARY KEY,
+			Name TEXT NOT NULL,
 			Owner TEXT NOT NULL,
 			Admins TEXT[],
 			Hrs TEXT[],

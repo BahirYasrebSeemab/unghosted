@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"go-server/internal/pkg/httputil"
 	"net/http"
 )
@@ -73,22 +74,54 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, resp)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    resp.RefreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 21600,
+	})
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token": resp.Token,
+	})
 }
 
 func (h *UserHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	var req RefreshRequest
-
-	if err := httputil.DecodeJSON(r, &req); err != nil {
-		httputil.Error(w, err)
+	refresh_token, err := r.Cookie("refresh_token")
+	fmt.Println("ALL COOKIES:", r.Cookies())
+	if err != nil {
+		http.Error(w, "refresh token cookie not found", http.StatusUnauthorized)
 		return
 	}
 
-	resp, err := h.service.Refresh(r.Context(), req.RefreshToken)
+	resp, err := h.service.Refresh(r.Context(), refresh_token.Value)
 	if err != nil {
 		httputil.Error(w, err)
+		fmt.Println(err)
 		return
 	}
 
-	httputil.JSON(w, http.StatusOK, resp)
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token": resp,
+	})
+}
+
+func (h *UserHandler) LogOut(w http.ResponseWriter, r *http.Request) {
+	refresh_token, err := r.Cookie("refresh_token")
+
+	if err != nil {
+		httputil.Error(w, err)
+	}
+
+	err = h.service.LogOut(r.Context(), refresh_token.Value)
+	if err != nil {
+		httputil.Error(w, err)
+		fmt.Println(err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, nil)
 }

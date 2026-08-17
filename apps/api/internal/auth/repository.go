@@ -26,7 +26,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user User) error {
 	fmt.Println(user.Name, " ", user.Email, " ", user.Password, " ", user.Companies)
 
 	_, err := r.DB.Exec(ctx, `INSERT INTO users
-		(Name, Email , Password , Companies)
+		(name, email , password , companies)
 		VALUES ($1 , $2 , $3 , $4)
 	`, user.Name, user.Email, user.Password, user.Companies)
 
@@ -34,7 +34,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user User) error {
 		return err
 	}
 
-	_, err = r.DB.Exec(ctx, `DELETE FROM temp_users WHERE Email = $1`, user.Email)
+	_, err = r.DB.Exec(ctx, `DELETE FROM temp_users WHERE email = $1`, user.Email)
 
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user User) error {
 	return nil
 }
 
-// Registration consists of two parts: 
+// Registration consists of two parts:
 // CreatingTempUser -> Sending code to gmail
 // -> Creating real user
 
@@ -51,8 +51,8 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 	ctx := context.Background()
 
 	var Email string
-	err := r.DB.QueryRow(ctx, 
-		`SELECT Email FROM temp_users WHERE Email = $1`, tempUser.Email).
+	err := r.DB.QueryRow(ctx,
+		`SELECT email FROM temp_users WHERE email = $1`, tempUser.Email).
 		Scan(&Email)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
@@ -64,8 +64,8 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 
 	Email = ""
 
-	err = r.DB.QueryRow(ctx, 
-		`SELECT Email FROM users WHERE Email = $1`, tempUser.Email).
+	err = r.DB.QueryRow(ctx,
+		`SELECT email FROM users WHERE email = $1`, tempUser.Email).
 		Scan(&Email)
 
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -77,7 +77,7 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 	}
 
 	_, err = r.DB.Exec(ctx, `INSERT INTO temp_users
-		(Name , Email , Code , Password , Finish_time)
+		(name , email , code , password , finish_time)
 		VALUES ($1 , $2 , $3 , $4 , $5)
 	`, tempUser.Name, tempUser.Email, tempUser.Code, tempUser.Password, tempUser.Finish_time)
 
@@ -92,8 +92,8 @@ func (r *UserRepository) FindCode(ConfirmEmail string) (int, error) {
 
 	var Code int
 
-	err := r.DB.QueryRow(ctx, 
-		`SELECT Code FROM temp_users WHERE Email = $1`, ConfirmEmail).
+	err := r.DB.QueryRow(ctx,
+		`SELECT code FROM temp_users WHERE email = $1`, ConfirmEmail).
 		Scan(&Code)
 
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -113,8 +113,8 @@ func (r *UserRepository) FindCode(ConfirmEmail string) (int, error) {
 func (r *UserRepository) GetUsersData(ctx context.Context, UserEmail string) (*User, error) {
 	var user User
 
-	err := r.DB.QueryRow(ctx, 
-		`SELECT Name , Email , Password FROM temp_users WHERE Email = $1`, UserEmail).
+	err := r.DB.QueryRow(ctx,
+		`SELECT neme, email , password FROM temp_users WHERE email = $1`, UserEmail).
 		Scan(&user.Name, &user.Email, &user.Password)
 
 	if err != nil {
@@ -127,8 +127,8 @@ func (r *UserRepository) GetUsersData(ctx context.Context, UserEmail string) (*U
 func (r *UserRepository) GetRealUser(ctx context.Context, UserEmail string) (User, error) {
 	var user User
 
-	err := r.DB.QueryRow(ctx, 
-		`SELECT Name, Email, Password FROM users WHERE Email = $1`, UserEmail).
+	err := r.DB.QueryRow(ctx,
+		`SELECT name, email, password FROM users WHERE email = $1`, UserEmail).
 		Scan(&user.Name, &user.Email, &user.Password)
 
 	if err != nil {
@@ -150,13 +150,12 @@ func (r *UserRepository) StoreRefreshToken(ctx context.Context, email string, to
 	const query = `
 		INSERT INTO refresh_tokens(email, token_hash, expires_at)
 		VALUES ($1, $2, $3)`
-	
+
 	_, err := r.DB.Exec(ctx, query, email, tokenHash, expiresAt)
 	return err
 }
 
 func (r *UserRepository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
-	ErrRefreshTokenNotFound := errors.New("Refresh token not found")
 	const query = `
 		SELECT id, email, token_hash, expires_at, revoked_at, created_at
 		FROM refresh_tokens
@@ -173,15 +172,13 @@ func (r *UserRepository) GetRefreshToken(ctx context.Context, tokenHash string) 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &rt, nil
 }
 
-func (r *UserRepository) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
+func (r *UserRepository) LogOut(ctx context.Context, tokenHash string) error {
 	const query = `
-		UPDATE refresh_tokens
-		SET revoked_at = now()
-		WHERE token_hash = $1
+		DELETE FROM refresh_tokens WHERE token_hash = $1
 	`
 
 	_, err := r.DB.Exec(ctx, query, tokenHash)
