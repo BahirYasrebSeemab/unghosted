@@ -11,20 +11,23 @@ export default function VideoRoom({ roomId, token }: { roomId: string; token: st
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([]);
   const peerManagerRef = useRef<PeerManager | null>(null);
+  const setupDone = useRef(false); // NEW
 
   useEffect(() => {
+    if (setupDone.current) return; // NEW
+    setupDone.current = true;      // NEW
+
     let localStream: MediaStream;
 
     async function setup() {
+      console.log('setup() called'); // keep this for now to confirm the fix
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStream;
       }
-
       const signaling = new SignalingClient(roomId, token);
       const peerManager = new PeerManager(signaling, localStream);
       peerManagerRef.current = peerManager;
-
       peerManager.onRemoteStream = (peerId, stream) => {
         setRemoteStreams((prev) => {
           const exists = prev.find((r) => r.peerId === peerId);
@@ -32,14 +35,11 @@ export default function VideoRoom({ roomId, token }: { roomId: string; token: st
           return [...prev, { peerId, stream }];
         });
       };
-
       peerManager.onPeerLeft = (peerId) => {
         setRemoteStreams((prev) => prev.filter((r) => r.peerId !== peerId));
       };
     }
-
     setup();
-
     return () => {
       localStream?.getTracks().forEach((track) => track.stop());
       peerManagerRef.current?.peers.forEach((client) => client.close());
@@ -58,12 +58,10 @@ export default function VideoRoom({ roomId, token }: { roomId: string; token: st
 
 function RemoteVideo({ stream }: { stream: MediaStream }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
-
   return <video ref={videoRef} autoPlay playsInline style={{ width: 300 }} />;
 }

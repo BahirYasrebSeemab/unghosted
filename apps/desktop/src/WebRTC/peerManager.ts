@@ -60,8 +60,15 @@ export default class PeerManager {
         });
       }
     };
+    client.onconnectionstatechange = (event) => {
+      console.log(`[${peerId}] connection state:`, client.connectionState)
+    }
     this.peers.set(peerId, client);
     return client;
+  }
+
+  async setup() {
+    console.log('setup() called');
   }
 
   async handleCandidate(msg: SignalMessage): Promise<void> {
