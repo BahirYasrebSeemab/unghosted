@@ -106,17 +106,9 @@ func (h *UserHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    resp,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60 * 21600,
+	json.NewEncoder(w).Encode(map[string]string{
+		"access_token": resp,
 	})
-
-	w.Write([]byte("New refresh token created"))
 }
 
 func (h *UserHandler) LogOut(w http.ResponseWriter, r *http.Request) {
