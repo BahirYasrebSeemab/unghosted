@@ -30,6 +30,34 @@ or work lands, don't let it go stale. See `CLAUDE.md` for current-state architec
 6. **Builtin chat** — needs backend (messages/files endpoints) + auth first.
 7. **Mac build** — do after core features stabilize on Windows. Blocked specifically on: porting `windowScanner.ts` (Win32-only) to macOS equivalent, code-signing/notarization setup, and re-testing kiosk-lock behavior (Cmd+Tab/Mission Control are harder to suppress than Windows global shortcuts).
 
+## Recommended next task (backend not ready yet)
+
+Everything auth/room/chat-shaped is blocked on the Go team publishing real endpoints — no point
+building against guesses beyond the draft contract already sent their way. The highest-value
+backend-independent work, in order:
+
+1. **Finish the app split for real: move the dashboard UI out of `candidate-app` into
+   `interviewer-app`.** Right now `candidate-app` still contains the risk gauge/monitor
+   cards/event log (leftover from the pre-split single app) and `interviewer-app` is just a
+   placeholder — the split isn't actually done yet, just scaffolded. This also means extracting
+   the monitoring *logic* (not just the types already in `packages/shared`) so both apps share one
+   definition of what an event/risk-score update looks like, feeding `interviewer-app`'s dashboard
+   from a stubbed/mocked data source until the real room stream exists.
+2. **Do the UI redesign pass as part of that move, not after it** — rebuilding the dashboard UI
+   inside `interviewer-app` is the natural point to also fix the "too AI-lookish" look (swap emoji
+   icons, drop the corner-bracket decoration, pick a deliberate visual identity) rather than
+   porting the old look over and redoing it twice. Load the `frontend-design` skill when starting
+   this.
+3. Once 1–2 land, apply the same visual pass to what's left in `candidate-app` (the actual
+   kiosk/monitoring surface, once the dashboard bits are gone from it).
+4. In parallel or after: walk through the other pre-existing bugs flagged in `CLAUDE.md` /
+   above (duplicate `onWindowScan` key, `window.ipcRenderer` bridge typing, `main.ts`'s null-`win`
+   accesses) — each one so far has turned into a real runtime crash once exercised, not just
+   noise.
+
+This ordering matches `TODO.md`'s own priority order (Interviewer UI, then better-looking UI, then
+auth) — auth is next after this, once the backend team has something to build against.
+
 ## Decisions log
 
 - **2026-08-01** — Backend will be Go, built by a separate team; declined Supabase.
@@ -114,3 +142,8 @@ noise, each one is worth walking through and fixing, not only the two that happe
 first. Recommend a dedicated pass through the remaining ones (duplicate `onWindowScan` key,
 `window.ipcRenderer` bridge-method typing, `main.ts`'s null-`win` accesses) before relying on this
 app further, rather than waiting to hit each one at runtime.
+
+**2026-08-01 — user confirmed `bun run dev:candidate` works** after both fixes above. Scaffolding
+work staged on a new `bahir` branch; commit itself paused mid-flight at the user's request (they
+interrupted the commit tool call to redirect to roadmap/next-task planning first — nothing lost,
+just not yet committed). See "Recommended next task" below for what's next.
