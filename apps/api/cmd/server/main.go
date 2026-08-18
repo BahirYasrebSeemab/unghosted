@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	// _ "server"
+	"go-server/internal/admins"
 	"go-server/internal/auth"
 	"go-server/internal/companies"
 	"go-server/internal/config"
@@ -18,6 +19,7 @@ import (
 	"go-server/internal/server"
 
 	"go-server/internal/signaling"
+
 	"github.com/joho/godotenv"
 
 	"flag"
@@ -76,17 +78,28 @@ func run() error {
 	companyService := companies.NewCompanyService(companyRepo)
 	companyHandler := companies.NewCompanyHandler(companyService)
 
+	adminRepo := admins.NewRepository(pool)
+	adminService := admins.NewAdminService(
+		adminRepo,
+		cfg.JWTSecret,
+		cfg.JWTAccessExpiration,
+		cfg.JWTRefreshExpiration,
+	)
+	adminHandler := admins.NewAdminHandler(adminService)
+
 	hub := signaling.NewHub()
 	go hub.Run()
 
 	signalingHandler := signaling.NewHandler(hub)
 
 	httpHandler := router.New(router.Dependencies{
-		AuthHandler:    authHandler,
-		AuthService:    authService,
-		RoomHandler:    roomHandler,
+		AuthHandler:      authHandler,
+		AuthService:      authService,
+		RoomHandler:      roomHandler,
 		SignalingHandler: signalingHandler,
-		CompanyHandler: companyHandler,
+		CompanyHandler:   companyHandler,
+		AdminService:     adminService,
+		AdminHandler:     adminHandler,
 	})
 
 	srv := server.New(":"+strconv.Itoa(cfg.Port), httpHandler)

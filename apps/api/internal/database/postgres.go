@@ -109,5 +109,27 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 		log.Fatal(err)
 	}
 
+	_, err = pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS admins(
+			email TEXT NOT NULL PRIMARY KEY,
+			password TEXT NOT NULL
+		)
+	`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS admin_tokens(
+			email TEXT NOT NULL PRIMARY KEY,
+			admin_token TEXT NOT NULL
+		)
+	`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return pool, nil
 }
