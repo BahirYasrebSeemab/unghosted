@@ -3,6 +3,13 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { scanWindows, type FlaggedWindow } from './windowScanner'
+import { ApiClient } from '@unghosted/shared'
+
+// All apps/api calls run from here (main process, not the renderer) since apps/api has no CORS
+// config yet — a plain fetch/axios from the renderer would be blocked. See CLAUDE.md.
+const apiClient = new ApiClient(process.env.API_BASE_URL ?? 'http://localhost:3000')
+
+ipcMain.handle('api:joinRoom', (_event, joinCode: string) => apiClient.joinRoom(joinCode))
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))

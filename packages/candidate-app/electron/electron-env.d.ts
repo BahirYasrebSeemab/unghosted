@@ -21,7 +21,8 @@ declare namespace NodeJS {
   }
 }
 
-// Used in Renderer process, expose in `preload.ts`
-interface Window {
-  ipcRenderer: import('electron').IpcRenderer
-}
+// Window.ipcRenderer's real shape is declared in electron-api.d.ts — a second, narrower
+// `interface Window { ipcRenderer: ... }` here silently wins during merging and hides the
+// augmented methods (this was CLAUDE.md's documented "window.ipcRenderer resolves to Electron's
+// built-in IpcRenderer type" rough edge; the vite-plugin-electron template generates this file
+// with its own Window augmentation, which is what was shadowing it).

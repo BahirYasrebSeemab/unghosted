@@ -1,2 +1,6 @@
 export * from "./monitoring"
 export * from "./room-stream"
+export * from "./apiClient"
+export * from "./roomChannel"
+export { default as PeerManager } from "./peerManager"
+export { default as VideoRoom } from "./VideoRoom"

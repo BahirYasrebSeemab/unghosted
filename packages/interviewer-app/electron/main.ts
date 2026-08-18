@@ -1,8 +1,21 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { ApiClient, type CreateRoomInput } from '@unghosted/shared'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// All apps/api calls run from here (main process, not the renderer) since apps/api has no CORS
+// config yet — a plain fetch/axios from the renderer would be blocked. See CLAUDE.md.
+const apiClient = new ApiClient(process.env.API_BASE_URL ?? 'http://localhost:3000')
+
+ipcMain.handle('api:login', (_e, email: string, password: string) => apiClient.login(email, password))
+ipcMain.handle('api:sendCode', (_e, name: string, email: string, password: string) => apiClient.sendCode(name, email, password))
+ipcMain.handle('api:register', (_e, email: string, code: number) => apiClient.register(email, code))
+ipcMain.handle('api:refresh', () => apiClient.refresh())
+ipcMain.handle('api:createRoom', (_e, token: string, input: CreateRoomInput) => apiClient.createRoom(token, input))
+ipcMain.handle('api:listRooms', (_e, token: string) => apiClient.listRooms(token))
+ipcMain.handle('api:getRoom', (_e, token: string, roomId: string) => apiClient.getRoom(token, roomId))
 
 // The built directory structure
 //

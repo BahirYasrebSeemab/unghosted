@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { ConcentrationMonitor, type ConcentrationReading } from "./concentrationMonitor"
 import { scanWindows } from "../electron/windowScanner";
 
-import VideoRoom from "./components/VideoRoom.tsx";
+import { VideoRoom } from "@unghosted/shared";
 
 type Severity = "info" | "warning" | "critical"
 
@@ -373,7 +373,24 @@ export default function App() {
   const lastKeystrokeRef = useRef<number>(0)
   const gazeAlertCooldownRef = useRef(0);
 
-  const [hcToken] = useState(() => import.meta.env.VITE_INTERVIEW_TOKEN ?? "");
+  const [roomSession, setRoomSession] = useState<{ roomId: string; token: string } | null>(null)
+  const [joinCode, setJoinCode] = useState("")
+  const [joining, setJoining] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
+
+  const handleJoin = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    setJoining(true)
+    setJoinError(null)
+    try {
+      const result = await window.ipcRenderer.joinRoom(joinCode.trim())
+      setRoomSession({ roomId: result.room.id, token: result.roomToken })
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : "Could not join that room")
+    } finally {
+      setJoining(false)
+    }
+  }, [joinCode])
 
   const [hasScreen, setHasScreen] = useState(false);
   
@@ -719,6 +736,34 @@ export default function App() {
   const criticalCount = events.filter((e) => e.severity === "critical").length
   const warningCount = events.filter((e) => e.severity === "warning").length
 
+  if (!roomSession) {
+    return (
+      <div className="min-h-screen bg-[#07090e] text-slate-200 font-sans flex items-center justify-center p-6">
+        <form onSubmit={handleJoin} className="w-full max-w-sm space-y-4">
+          <div className="text-center space-y-1">
+            <h1 className="text-lg font-semibold text-slate-100">Join Interview</h1>
+            <p className="text-sm text-slate-500">Enter the join code your interviewer sent you.</p>
+          </div>
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            placeholder="Join code"
+            className="w-full bg-[#0f1117] border border-[#1e2230] rounded px-3 py-2 text-sm font-mono tracking-widest text-center uppercase"
+            autoFocus
+          />
+          {joinError && <p className="text-sm text-red-500 text-center">{joinError}</p>}
+          <button
+            type="submit"
+            disabled={joining || !joinCode.trim()}
+            className="w-full bg-amber-500 text-black font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
+          >
+            {joining ? "Joining…" : "Join"}
+          </button>
+        </form>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-200 font-sans p-4 lg:p-6">
       {/* Header */}
@@ -804,11 +849,13 @@ export default function App() {
               onReading={handleReading}
             />
 
-            <VideoRoom
-              // TODO: hardcoded roomId until the real room/auth flow (docs/API_CONTRACT.md) is wired in
-              roomId={import.meta.env.VITE_INTERVIEW_ROOM_ID ?? "aa85e2e3-a5d6-4eb6-af88-badf9e395953"}
-              token={hcToken}
-            />
+            {roomSession && (
+              <VideoRoom
+                wsBaseUrl={import.meta.env.VITE_WS_BASE_URL ?? "ws://localhost:3000"}
+                roomId={roomSession.roomId}
+                token={roomSession.token}
+              />
+            )}
             <div>
             <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Screen Feed</span>

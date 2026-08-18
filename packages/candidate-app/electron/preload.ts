@@ -31,5 +31,6 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   },
   startSessionScan: () => ipcRenderer.send('session-start'),
   enterKioskMode: () => ipcRenderer.send('enter-kiosk'),
-  exitKioskMode: () => ipcRenderer.send('exit-kiosk')
+  exitKioskMode: () => ipcRenderer.send('exit-kiosk'),
+  joinRoom: (joinCode: string) => ipcRenderer.invoke('api:joinRoom', joinCode)
 })

@@ -66,6 +66,13 @@
     "packages/shared": {
       "name": "@unghosted/shared",
       "version": "0.0.0",
+      "dependencies": {
+        "axios": "^1.19.0",
+        "react": "^18.2.0",
+      },
+      "devDependencies": {
+        "@types/react": "^18.2.64",
+      },
     },
   },
   "trustedDependencies": [
