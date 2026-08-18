@@ -53,11 +53,11 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS temp_users(
-			Name TEXT NOT NULL,
-			Email TEXT NOT NULL PRIMARY KEY,
-			Code INT NOT NULL,
-			Password TEXT NOT NULL,
-			Finish_time TIMESTAMPTZ
+			name TEXT NOT NULL,
+			email TEXT NOT NULL PRIMARY KEY,
+			code INT NOT NULL,
+			password TEXT NOT NULL,
+			finish_time TIMESTAMPTZ
 		)
 	`)
 
@@ -67,11 +67,11 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 	// Add refesh token to the users
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS users(
-			Name TEXT NOT NULL,
-			Email TEXT NOT NULL PRIMARY KEY,
-			Password TEXT NOT NULL,
-			RefreshToken TEXT,
-			Companies TEXT[]
+			name TEXT NOT NULL,
+			email TEXT NOT NULL PRIMARY KEY,
+			password TEXT NOT NULL,
+			refreshToken TEXT,
+			companies TEXT[]
 		)
 	`)
 
@@ -81,12 +81,12 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS Companies(
-			Id SERIAL PRIMARY KEY,
-			Name TEXT NOT NULL,
-			Owner TEXT NOT NULL,
-			Admins TEXT[],
-			Hrs TEXT[],
-			Balance INT
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			owner TEXT NOT NULL,
+			admins TEXT[],
+			hrs TEXT[],
+			balance INT
 		)
 	`)
 
@@ -96,12 +96,12 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS refresh_tokens(
-			Id 			UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
-			Email		TEXT NOT NULL,
-			Token_hash	TEXT NOT NULL UNIQUE,
-			Expires_at 	TIMESTAMPTZ NOT NULL,
-			Revoked_at 	TIMESTAMPTZ,
-			Created_at 	TIMESTAMPTZ NOT NULL DEFAULT now()
+			id 			UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+			email		TEXT NOT NULL,
+			token_hash	TEXT NOT NULL UNIQUE,
+			expires_at 	TIMESTAMPTZ NOT NULL,
+			revoked_at 	TIMESTAMPTZ,
+			created_at 	TIMESTAMPTZ NOT NULL DEFAULT now()
 		)
 	`)
 

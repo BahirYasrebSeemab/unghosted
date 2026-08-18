@@ -114,7 +114,7 @@ func (r *UserRepository) GetUsersData(ctx context.Context, UserEmail string) (*U
 	var user User
 
 	err := r.DB.QueryRow(ctx,
-		`SELECT neme, email , password FROM temp_users WHERE email = $1`, UserEmail).
+		`SELECT name, email , password FROM temp_users WHERE email = $1`, UserEmail).
 		Scan(&user.Name, &user.Email, &user.Password)
 
 	if err != nil {

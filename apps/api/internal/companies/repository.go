@@ -18,7 +18,7 @@ func NewRepository(DB *pgxpool.Pool) *CompanyRepository {
 
 func (r *CompanyRepository) CreateCompany(ctx context.Context, company CompanyWithoutId) error {
 	const query = `
-		INSERT INTO Companies (Name , Owner , Admins , Hrs , Balance)
+		INSERT INTO Companies (name , owner , admins , hrs , balance)
 		VALUES ($1 , $2 , $3 , $4 , $5)
 	`
 
@@ -29,7 +29,7 @@ func (r *CompanyRepository) CreateCompany(ctx context.Context, company CompanyWi
 
 func (r *CompanyRepository) DeleteCompany(ctx context.Context, id int) error {
 	const query = `
-		DELETE FROM Companies WHERE Id = $1 
+		DELETE FROM Companies WHERE id = $1 
 	`
 
 	_, err := r.DB.Exec(ctx, query, id)
@@ -39,7 +39,7 @@ func (r *CompanyRepository) DeleteCompany(ctx context.Context, id int) error {
 
 func (r *CompanyRepository) ReduceBalance(ctx context.Context, value int, id int) error {
 	const query = `
-		UPDATE Comapnies SET Balance = Balance - $1 WHERE Id = $2
+		UPDATE Companies SET balance = balance - $1 WHERE id = $2
 	`
 
 	_, err := r.DB.Exec(ctx, query, value, id)
@@ -49,7 +49,7 @@ func (r *CompanyRepository) ReduceBalance(ctx context.Context, value int, id int
 
 func (r *CompanyRepository) IncreaseBalance(ctx context.Context, value int, id int) error {
 	const query = `
-		UPDATE Comapnies SET Balance = Balance + $1 WHERE Id = $2
+		UPDATE Companies SET balance = balance + $1 WHERE id = $2
 	`
 
 	_, err := r.DB.Exec(ctx, query, value, id)
@@ -59,7 +59,7 @@ func (r *CompanyRepository) IncreaseBalance(ctx context.Context, value int, id i
 
 func (r *CompanyRepository) UpdateCompanyName(ctx context.Context, name string, id int) error {
 	const query = `
-		UPDATE Companies SET name = $1 WHERE Id = $2
+		UPDATE Companies SET name = $1 WHERE id = $2
 	`
 
 	_, err := r.DB.Exec(ctx, query, name, id)
@@ -70,8 +70,8 @@ func (r *CompanyRepository) UpdateCompanyName(ctx context.Context, name string, 
 func (r *CompanyRepository) AddAdmin(ctx context.Context, name string, id int) error {
 	const query = `
 		UPDATE Companies 
-		SET Admins = array_append(coalesce(Admins, '{}'), $1) 
-		WHERE Id = $2 AND NOT ($1 = ANY(coalesce(Admins, '{}')))
+		SET admins = array_append(coalesce(admins, '{}'), $1) 
+		WHERE id = $2 AND NOT ($1 = ANY(coalesce(admins, '{}')))
 	`
 
 	_, err := r.DB.Exec(ctx, query, name, id)
@@ -82,8 +82,8 @@ func (r *CompanyRepository) AddAdmin(ctx context.Context, name string, id int) e
 func (r *CompanyRepository) AddHr(ctx context.Context, name string, id int) error {
 	const query = `
 		UPDATE Companies 
-		SET Hrs = array_append(coalesce(Hrs, '{}'), $1) 
-		WHERE Id = $2 AND NOT ($1 = ANY(coalesce(Hrs, '{}')))
+		SET hrs = array_append(coalesce(hrs, '{}'), $1) 
+		WHERE id = $2 AND NOT ($1 = ANY(coalesce(hrs, '{}')))
 	`
 
 	_, err := r.DB.Exec(ctx, query, name, id)
@@ -94,8 +94,8 @@ func (r *CompanyRepository) AddHr(ctx context.Context, name string, id int) erro
 func (r *CompanyRepository) DeleteAdmin(ctx context.Context, name string, id int) error {
 	const query = `
 		UPDATE Companies 
-		SET Admins = array_remove(coalesce(Admins, '{}'), $1) 
-		WHERE Id = $2
+		SET admins = array_remove(coalesce(admins, '{}'), $1) 
+		WHERE id = $2
 	`
 
 	_, err := r.DB.Exec(ctx, query, name, id)
@@ -106,8 +106,8 @@ func (r *CompanyRepository) DeleteAdmin(ctx context.Context, name string, id int
 func (r *CompanyRepository) DeleteHr(ctx context.Context, name string, id int) error {
 	const query = `
 		UPDATE Companies 
-		SET Hrs = array_remove(coalesce(Hrs, '{}'), $1) 
-		WHERE Id = $2
+		SET hrs = array_remove(coalesce(hrs, '{}'), $1) 
+		WHERE id = $2
 	`
 
 	_, err := r.DB.Exec(ctx, query, name, id)
@@ -117,7 +117,7 @@ func (r *CompanyRepository) DeleteHr(ctx context.Context, name string, id int) e
 
 func (r *CompanyRepository) IsOwner(ctx context.Context, id int) (bool, error) {
 	const query = `
-		SELECT Owner FROM Companies WHERE Id = $1
+		SELECT owner FROM Companies WHERE id = $1
 	`
 
 	_, err := r.DB.Exec(ctx, query, id)
@@ -131,9 +131,9 @@ func (r *CompanyRepository) IsOwner(ctx context.Context, id int) (bool, error) {
 
 func (r *CompanyRepository) IsAdmin(ctx context.Context, name string, id int) (bool, error) {
 	const query = `
-		SELECT ($1 = ANY(coalesce(Admins, '{}'))) AS has_admin 
+		SELECT ($1 = ANY(coalesce(admins, '{}'))) AS has_admin 
 		FROM Companies 
-		WHERE Id = $2
+		WHERE id = $2
 	`
 
 	_, err := r.DB.Exec(ctx, query, name, id)
