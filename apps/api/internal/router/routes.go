@@ -76,7 +76,7 @@ func New(deps Dependencies) http.Handler {
 		r.Post("/users/register", deps.AuthHandler.CreateUser)
 
 		r.Post("/users/login", deps.AuthHandler.Login)
-		r.Post("/auth/refresh", deps.AuthHandler.Refresh)
+		r.Get("/auth/refresh", deps.AuthHandler.Refresh)
 
 		r.Route("/companies", func(r chi.Router) {
 			r.Use(mdw.AuthMiddleware(deps.AuthService))
