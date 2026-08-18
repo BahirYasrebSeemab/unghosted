@@ -47,6 +47,8 @@ func (h *CompanyHandler) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.Error(w, err)
 	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *CompanyHandler) DeleteCompany(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +67,8 @@ func (h *CompanyHandler) DeleteCompany(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.Error(w, err)
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *CompanyHandler) UpdateCompanyName(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +87,8 @@ func (h *CompanyHandler) UpdateCompanyName(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		httputil.Error(w, err)
 	}
+	
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *CompanyHandler) ReduceBalance(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +107,8 @@ func (h *CompanyHandler) ReduceBalance(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.Error(w, err)
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *CompanyHandler) IncreaseBalance(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +127,9 @@ func (h *CompanyHandler) IncreaseBalance(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		httputil.Error(w, err)
 	}
+
+	
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *CompanyHandler) AddAdmin(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +148,8 @@ func (h *CompanyHandler) AddAdmin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.Error(w, err)
 	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *CompanyHandler) AddHr(w http.ResponseWriter, r *http.Request) {
@@ -155,4 +168,6 @@ func (h *CompanyHandler) AddHr(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.Error(w, err)
 	}
+
+	w.WriteHeader(http.StatusCreated)
 }

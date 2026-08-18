@@ -33,6 +33,11 @@ func New(deps Dependencies) http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("YAsin how are you doing ?"))
+	})
+
 	r.Route("/v1", func(r chi.Router) {
 		// r.Post("/auth/register", deps.AuthHandler.Register)
 		// r.Post("/auth/login", deps.AuthHandler.Login)

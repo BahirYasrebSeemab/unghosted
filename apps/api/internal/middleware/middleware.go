@@ -3,13 +3,15 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"go-server/internal/errors/apierr"
 	"go-server/internal/auth"
+	"go-server/internal/errors/apierr"
 	"net/http"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
+	"log/slog"
 	_ "log/slog"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // func AuthMiddleware(next http.Handler) http.Handler {
@@ -69,13 +71,17 @@ func AuthMiddleware(userService *auth.UserService) func(http.Handler) http.Handl
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			authHeader := r.Header.Get("Authorization")
-
-			if !strings.HasPrefix(authHeader, "Bearer ") {
+			
+			slog.Log(r.Context(), slog.LevelInfo, "your url token is:"+r.URL.Query().Get("token"))
+			if !strings.HasPrefix(authHeader, "Bearer ") && r.URL.Query().Get("token") == "" {
 				http.Error(w, "Unauthorized4", http.StatusUnauthorized)
 				return
 			}
 
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+			if tokenString == "" {
+				tokenString = r.URL.Query().Get("token")
+			}
 
 			email, err := userService.ValidateToken(tokenString)
 			if err != nil {
