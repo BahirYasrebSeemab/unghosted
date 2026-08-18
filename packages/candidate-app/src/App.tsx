@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ConcentrationMonitor, type ConcentrationReading } from "./concentrationMonitor"
-import { scanWindows } from "../electron/windowScanner"
+import { scanWindows } from "../electron/windowScanner";
+
+import VideoRoom from "./components/VideoRoom.tsx";
 
 type Severity = "info" | "warning" | "critical"
 
@@ -370,6 +372,8 @@ export default function App() {
   const keystrokesRef = useRef<number[]>([])
   const lastKeystrokeRef = useRef<number>(0)
   const gazeAlertCooldownRef = useRef(0);
+
+  const [hcToken] = useState(() => import.meta.env.VITE_INTERVIEW_TOKEN ?? "");
 
   const [hasScreen, setHasScreen] = useState(false);
   
@@ -798,6 +802,12 @@ export default function App() {
               hasPermission={hasCamera}
               onPermission={handleCameraPermission}
               onReading={handleReading}
+            />
+
+            <VideoRoom
+              // TODO: hardcoded roomId until the real room/auth flow (docs/API_CONTRACT.md) is wired in
+              roomId={import.meta.env.VITE_INTERVIEW_ROOM_ID ?? "aa85e2e3-a5d6-4eb6-af88-badf9e395953"}
+              token={hcToken}
             />
             <div>
             <div className="flex items-center justify-between mb-2">

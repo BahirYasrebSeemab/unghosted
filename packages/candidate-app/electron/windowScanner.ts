@@ -2,7 +2,6 @@
 import koffi from 'koffi';
 import { processes } from 'systeminformation';
 
-
 const WDA_MONITOR = 0x1
 const WDA_EXCLUDEFROMCAPTURE = 0x11 // the one GhostGPT-style overlays set
 
@@ -48,7 +47,7 @@ export function scanWindows(blacklist: string[] = []): FlaggedWindow[] {
   const callback = koffi.register((hwnd: HWND): boolean => {
     if (!(IsWindowVisible(hwnd) as boolean)) return true
 
-    const title = getWindowTitleSafe(hwnd)
+    const title = getWindowTitleSafe(hwnd, GetWindowTextW)
     const pidOut = [0]
 
     const affinityOut = [0]
