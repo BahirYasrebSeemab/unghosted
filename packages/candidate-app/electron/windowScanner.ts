@@ -47,7 +47,7 @@ export function scanWindows(blacklist: string[] = []): FlaggedWindow[] {
   const callback = koffi.register((hwnd: HWND): boolean => {
     if (!(IsWindowVisible(hwnd) as boolean)) return true
 
-    const title = getWindowTitleSafe(hwnd, GetWindowTextW)
+    const title = getWindowTitleSafe(hwnd)
     const pidOut = [0]
 
     const affinityOut = [0]
