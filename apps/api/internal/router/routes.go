@@ -6,19 +6,22 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"go-server/internal/admins"
 	"go-server/internal/auth"
-	mdw "go-server/internal/middleware"
 	"go-server/internal/companies"
+	mdw "go-server/internal/middleware"
 	"go-server/internal/room"
 	"go-server/internal/signaling"
 )
 
 type Dependencies struct {
-	AuthHandler    *auth.UserHandler
-	AuthService    *auth.UserService
-	RoomHandler    *room.RoomHandler
-	SignalingHandler	*signaling.Handler
-	CompanyHandler *companies.CompanyHandler
+	AuthHandler      *auth.UserHandler
+	AuthService      *auth.UserService
+	RoomHandler      *room.RoomHandler
+	SignalingHandler *signaling.Handler
+	CompanyHandler   *companies.CompanyHandler
+	AdminService     *admins.AdminService
+	AdminHandler     *admins.AdminHandler
 }
 
 func New(deps Dependencies) http.Handler {
@@ -84,6 +87,11 @@ func New(deps Dependencies) http.Handler {
 			r.Patch("/updateName", deps.CompanyHandler.UpdateCompanyName)
 			r.Post("/addAdmin", deps.CompanyHandler.AddAdmin)
 			r.Post("/addHr", deps.CompanyHandler.AddHr)
+		})
+		r.Post("/admin/logIn", deps.AdminHandler.CheckAdmin)
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(deps.AdminService.AdminMiddleware)
+
 		})
 
 		// Register new user
