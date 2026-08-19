@@ -57,7 +57,7 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 			email TEXT NOT NULL PRIMARY KEY,
 			code INT NOT NULL,
 			password TEXT NOT NULL,
-			finish_time TIMESTAMPZ
+			finish_time TIMESTAMPTZ
 		)
 	`)
 
