@@ -131,5 +131,45 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 		log.Fatal(err)
 	}
 
+	_, err = pool.Exec(ctx, `
+		DO $$ BEGIN
+			CREATE TYPE status AS ENUM ('scheduled', 'active', 'ended');
+		EXCEPTION
+			WHEN duplicate_object THEN null;
+		END $$;
+	`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS rooms(
+			id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			created_by     TEXT,
+			candidate_name TEXT,
+			role           TEXT,
+			join_code      TEXT,
+			status         status NOT NULL DEFAULT 'scheduled',
+			started_at     TIMESTAMPTZ,
+			ended_at       TIMESTAMPTZ,
+			created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+		)
+	`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_rooms_created_by ON rooms(created_by)`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status)`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return pool, nil
 }

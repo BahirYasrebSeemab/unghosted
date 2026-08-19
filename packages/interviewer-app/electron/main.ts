@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { isAxiosError } from 'axios'
 import { ApiClient, type CreateRoomInput } from '@unghosted/shared'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -9,13 +10,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // config yet — a plain fetch/axios from the renderer would be blocked. See CLAUDE.md.
 const apiClient = new ApiClient(process.env.API_BASE_URL ?? 'http://localhost:3000')
 
-ipcMain.handle('api:login', (_e, email: string, password: string) => apiClient.login(email, password))
-ipcMain.handle('api:sendCode', (_e, name: string, email: string, password: string) => apiClient.sendCode(name, email, password))
-ipcMain.handle('api:register', (_e, email: string, code: number) => apiClient.register(email, code))
-ipcMain.handle('api:refresh', () => apiClient.refresh())
-ipcMain.handle('api:createRoom', (_e, token: string, input: CreateRoomInput) => apiClient.createRoom(token, input))
-ipcMain.handle('api:listRooms', (_e, token: string) => apiClient.listRooms(token))
-ipcMain.handle('api:getRoom', (_e, token: string, roomId: string) => apiClient.getRoom(token, roomId))
+// Electron re-serializes errors thrown from an ipcMain handler across the IPC boundary, keeping
+// only the top-level message — axios's response.data (the {code, message} body apps/api sends)
+// gets dropped, so the renderer only ever sees "Request failed with status code 500". Unwrap it
+// here so the real backend message reaches the renderer.
+function handle<Args extends unknown[], Result>(channel: string, fn: (...args: Args) => Promise<Result>) {
+  ipcMain.handle(channel, async (_e, ...args: Args) => {
+    try {
+      return await fn(...args)
+    } catch (err) {
+      if (isAxiosError(err)) {
+        const message = err.response?.data?.message
+        if (message) throw new Error(message)
+      }
+      throw err
+    }
+  })
+}
+
+handle('api:login', (email: string, password: string) => apiClient.login(email, password))
+handle('api:sendCode', (name: string, email: string, password: string) => apiClient.sendCode(name, email, password))
+handle('api:register', (email: string, code: number) => apiClient.register(email, code))
+handle('api:refresh', () => apiClient.refresh())
+handle('api:createRoom', (token: string, input: CreateRoomInput) => apiClient.createRoom(token, input))
+handle('api:listRooms', (token: string) => apiClient.listRooms(token))
+handle('api:getRoom', (token: string, roomId: string) => apiClient.getRoom(token, roomId))
 
 // The built directory structure
 //
