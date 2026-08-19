@@ -8,7 +8,7 @@ import (
 
 type LogInData struct {
 	Email string `json:"Email" validate:"email, require"`
-	Password string `json:"-" validate:"required, min=6"`
+	Password string `json:"Password" validate:"required, min=6"`
 }
 
 type AuthResponse struct {
@@ -35,7 +35,7 @@ type ConfirmMessage struct {
 type NotReadyUser struct {
 	Name     string `json:"Name" validate:"required,min=2,max=50"`
 	Email    string `json:"Email" validate:"email,require"`
-	Password string `json:"-" validate:"required,min=6"`
+	Password string `json:"Password" validate:"required,min=6"`
 }
 
 // Users who didn't confirm their account yet

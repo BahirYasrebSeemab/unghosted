@@ -1,25 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
+/* A live-interview console, not a generic dashboard — tokens borrow from broadcast/control-room
+   language (tally lights, signal color) since that's what this screen actually does: show a live
+   feed and a status board. The signal color is reserved for state (live/active/risk), never used
+   decoratively, so it doesn't read as "one bright accent on near-black." */
 @theme inline {
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 
-  --color-background: #07090e;
-  --color-foreground: #e2e8f0;
-  --color-card: #0f1117;
-  --color-card-foreground: #cbd5e1;
-  --color-primary: #f59e0b;
-  --color-primary-foreground: #07090e;
-  --color-secondary: #1c2030;
-  --color-secondary-foreground: #94a3b8;
-  --color-muted: #141720;
-  --color-muted-foreground: #64748b;
-  --color-accent: #ef4444;
-  --color-accent-foreground: #fff;
-  --color-border: #1e2230;
-  --color-ring: #f59e0b;
-  --radius: 6px;
+  --color-background: #0b0d10;
+  --color-foreground: #e8e6e1;
+  --color-card: #131619;
+  --color-card-foreground: #c7c4bd;
+  --color-primary: #e8e6e1;
+  --color-primary-foreground: #0b0d10;
+  --color-secondary: #1a1e22;
+  --color-secondary-foreground: #8a8d92;
+  --color-muted: #15181b;
+  --color-muted-foreground: #6b6e73;
+  --color-border: #232830;
+  --color-ring: #2dd4a7;
+
+  /* Tally-light states — the one recurring signature element (room status, live risk indicator) */
+  --color-signal: #2dd4a7;
+  --color-signal-dim: rgba(45, 212, 167, 0.14);
+  --color-warning: #e8a33d;
+  --color-warning-dim: rgba(232, 163, 61, 0.14);
+  --color-critical: #e5484d;
+  --color-critical-dim: rgba(229, 72, 77, 0.14);
+
+  --radius: 4px;
 }
 
 * {
@@ -27,7 +38,14 @@
 }
 
 body {
-  background-color: #07090e;
-  color: #e2e8f0;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: #0b0d10;
+  color: #e8e6e1;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -106,7 +106,7 @@ func (s *UserService) Login(ctx context.Context, loginRequest LogInData) (*AuthR
 	ok, err := hashing.ValidateHash(loginRequest.Password, usr.Password)
 
 	if err != nil {
-		return nil, err
+		return nil, apierr.Unauthorized("Invalid credentials", err)
 	}
 
 	if !ok {

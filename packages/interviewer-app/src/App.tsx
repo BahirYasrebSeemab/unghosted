@@ -4,21 +4,75 @@ import { RoomChannel, VideoRoom } from "@unghosted/shared"
 
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? "ws://localhost:3000"
 
+function decodeJwtSub(token: string): string | null {
+  try {
+    const payload = token.split(".")[1]
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    return JSON.parse(json).sub ?? null
+  } catch {
+    return null
+  }
+}
+
+type RoomStatus = "scheduled" | "active" | "ended"
+
+// The one recurring device this app is built around: a tally light, the on-air indicator on a
+// broadcast camera. A room is either off (scheduled), live (active), or done (ended) — and once
+// you're watching a live feed, the same dot tracks risk instead (signal → warning → critical).
+function StatusDot({ tone, pulse }: { tone: "signal" | "warning" | "critical" | "off"; pulse?: boolean }) {
+  const color =
+    tone === "signal" ? "bg-[var(--color-signal)]" : tone === "warning" ? "bg-[var(--color-warning)]" : tone === "critical" ? "bg-[var(--color-critical)]" : "bg-muted-foreground"
+  return (
+    <span className="relative inline-flex h-2 w-2">
+      {pulse && <span className={`absolute inline-flex h-full w-full rounded-full ${color} opacity-60 animate-ping`} />}
+      <span className={`relative inline-flex h-2 w-2 rounded-full ${color}`} />
+    </span>
+  )
+}
+
+function statusTone(status: RoomStatus): "signal" | "warning" | "critical" | "off" {
+  return status === "active" ? "signal" : status === "ended" ? "off" : "off"
+}
+
 export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
   const [selectedRoom, setSelectedRoom] = useState<BackendRoom | null>(null)
 
+  const handleLogin = useCallback((token: string) => {
+    setAccessToken(token)
+    setUserEmail(decodeJwtSub(token))
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    setAccessToken(null)
+    setUserEmail(null)
+    setSelectedRoom(null)
+  }, [])
+
   if (!accessToken) {
-    return <AuthGate onLogin={setAccessToken} />
+    return <AuthGate onLogin={handleLogin} />
   }
 
   if (selectedRoom) {
     return (
-      <LiveRoomScreen room={selectedRoom} token={accessToken} onBack={() => setSelectedRoom(null)} />
+      <LiveRoomScreen
+        room={selectedRoom}
+        token={accessToken}
+        onBack={() => setSelectedRoom(null)}
+        onLogout={handleLogout}
+      />
     )
   }
 
-  return <RoomsScreen token={accessToken} onSelectRoom={setSelectedRoom} />
+  return (
+    <RoomsScreen
+      token={accessToken}
+      userEmail={userEmail}
+      onSelectRoom={setSelectedRoom}
+      onLogout={handleLogout}
+    />
+  )
 }
 
 // There's no browser chrome / URL bar in this Electron window to navigate between auth screens,
@@ -41,6 +95,25 @@ function AuthGate({ onLogin }: { onLogin: (token: string) => void }) {
 
   return (
     <LoginScreen onLogin={onLogin} onGoToRegister={() => setScreen("register")} initialEmail={prefillEmail} />
+  )
+}
+
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 font-display">
+      <div className="w-full max-w-sm">
+        <div className="flex items-center gap-2 justify-center mb-8">
+          <span className="relative inline-flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--color-signal)] opacity-60 animate-ping" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-signal)]" />
+          </span>
+          <span className="font-mono text-xs tracking-[0.2em] uppercase text-secondary-foreground">
+            UnGhosted · Interviewer
+          </span>
+        </div>
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -67,7 +140,7 @@ function LoginScreen({
         const result = await window.ipcRenderer.login(email, password)
         onLogin(result.accessToken)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Login failed")
+        setError(err instanceof Error ? err.message : "That email and password don't match.")
       } finally {
         setLoading(false)
       }
@@ -76,18 +149,14 @@ function LoginScreen({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <div className="text-center space-y-1">
-          <h1 className="text-lg font-semibold">UnGhosted Interviewer</h1>
-          <p className="text-sm text-secondary-foreground">Sign in to manage interview rooms.</p>
-        </div>
+    <AuthShell>
+      <form onSubmit={handleSubmit} className="space-y-3">
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full bg-card border border-border rounded px-3 py-2 text-sm"
+          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           autoFocus
         />
         <input
@@ -95,24 +164,24 @@ function LoginScreen({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="w-full bg-card border border-border rounded px-3 py-2 text-sm"
+          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
-        {error && <p className="text-sm text-accent text-center">{error}</p>}
+        {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
         <button
           type="submit"
           disabled={loading || !email || !password}
-          className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
+          className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40 transition-opacity"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
-        <p className="text-sm text-center text-secondary-foreground">
-          No account yet?{" "}
-          <button type="button" onClick={onGoToRegister} className="text-primary underline">
-            Create one
+        <p className="text-sm text-center text-secondary-foreground pt-2">
+          New here?{" "}
+          <button type="button" onClick={onGoToRegister} className="text-foreground underline underline-offset-2">
+            Create an account
           </button>
         </p>
       </form>
-    </div>
+    </AuthShell>
   )
 }
 
@@ -142,7 +211,7 @@ function RegisterScreen({
         await window.ipcRenderer.sendCode(name, email, password)
         setStep("code")
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not send verification code")
+        setError(err instanceof Error ? err.message : "Couldn't send a verification code.")
       } finally {
         setLoading(false)
       }
@@ -159,7 +228,7 @@ function RegisterScreen({
         await window.ipcRenderer.register(email, Number(code))
         onDone(email)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not confirm that code")
+        setError(err instanceof Error ? err.message : "That code didn't match.")
       } finally {
         setLoading(false)
       }
@@ -168,18 +237,14 @@ function RegisterScreen({
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+    <AuthShell>
       {step === "details" ? (
-        <form onSubmit={handleSendCode} className="w-full max-w-sm space-y-4">
-          <div className="text-center space-y-1">
-            <h1 className="text-lg font-semibold">Create an account</h1>
-            <p className="text-sm text-secondary-foreground">We'll email you a verification code.</p>
-          </div>
+        <form onSubmit={handleSendCode} className="space-y-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Name"
-            className="w-full bg-card border border-border rounded px-3 py-2 text-sm"
+            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             autoFocus
           />
           <input
@@ -187,57 +252,103 @@ function RegisterScreen({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
-            className="w-full bg-card border border-border rounded px-3 py-2 text-sm"
+            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full bg-card border border-border rounded px-3 py-2 text-sm"
+            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
-          {error && <p className="text-sm text-accent text-center">{error}</p>}
+          {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
           <button
             type="submit"
             disabled={loading || !name || !email || !password}
-            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
+            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40"
           >
-            {loading ? "Sending…" : "Send code"}
+            {loading ? "Sending…" : "Send verification code"}
           </button>
-          <p className="text-sm text-center text-secondary-foreground">
-            <button type="button" onClick={onBackToLogin} className="text-primary underline">
+          <p className="text-sm text-center text-secondary-foreground pt-2">
+            <button type="button" onClick={onBackToLogin} className="underline underline-offset-2">
               Back to sign in
             </button>
           </p>
         </form>
       ) : (
-        <form onSubmit={handleConfirm} className="w-full max-w-sm space-y-4">
-          <div className="text-center space-y-1">
-            <h1 className="text-lg font-semibold">Check your email</h1>
-            <p className="text-sm text-secondary-foreground">Enter the verification code sent to {email}.</p>
-          </div>
+        <form onSubmit={handleConfirm} className="space-y-3">
+          <p className="text-sm text-secondary-foreground text-center">
+            Enter the code sent to <span className="text-foreground">{email}</span>.
+          </p>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Verification code"
-            className="w-full bg-card border border-border rounded px-3 py-2 text-sm font-mono tracking-widest text-center"
+            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm font-mono tracking-widest text-center outline-none focus:ring-1 focus:ring-ring"
             autoFocus
           />
-          {error && <p className="text-sm text-accent text-center">{error}</p>}
+          {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
           <button
             type="submit"
             disabled={loading || !code.trim()}
-            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
+            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40"
           >
             {loading ? "Confirming…" : "Confirm"}
           </button>
         </form>
       )}
-    </div>
+    </AuthShell>
   )
 }
 
-function RoomsScreen({ token, onSelectRoom }: { token: string; onSelectRoom: (room: BackendRoom) => void }) {
+function Header({
+  eyebrow,
+  title,
+  onBack,
+  right,
+  onLogout,
+}: {
+  eyebrow: string
+  title: React.ReactNode
+  onBack?: () => void
+  right?: React.ReactNode
+  onLogout: () => void
+}) {
+  return (
+    <header className="flex items-start justify-between mb-6 pb-4 border-b border-border">
+      <div>
+        {onBack && (
+          <button onClick={onBack} className="text-xs font-mono text-secondary-foreground mb-1 hover:text-foreground">
+            ← Sessions
+          </button>
+        )}
+        <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-secondary-foreground mb-1">{eyebrow}</p>
+        <h1 className="text-xl font-semibold font-display">{title}</h1>
+      </div>
+      <div className="flex items-center gap-4">
+        {right}
+        <button
+          onClick={onLogout}
+          className="text-xs font-mono text-secondary-foreground border border-border rounded px-2.5 py-1.5 hover:text-foreground hover:border-foreground/30"
+        >
+          Sign out
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function RoomsScreen({
+  token,
+  userEmail,
+  onSelectRoom,
+  onLogout,
+}: {
+  token: string
+  userEmail: string | null
+  onSelectRoom: (room: BackendRoom) => void
+  onLogout: () => void
+}) {
   const [rooms, setRooms] = useState<BackendRoom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -252,7 +363,7 @@ function RoomsScreen({ token, onSelectRoom }: { token: string; onSelectRoom: (ro
     try {
       setRooms(await window.ipcRenderer.listRooms(token))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load rooms")
+      setError(err instanceof Error ? err.message : "Couldn't load sessions.")
     } finally {
       setLoading(false)
     }
@@ -268,17 +379,17 @@ function RoomsScreen({ token, onSelectRoom }: { token: string; onSelectRoom: (ro
       setCreating(true)
       setError(null)
       try {
-        await window.ipcRenderer.createRoom(token, { candidateName, role, createdBy: "" })
+        await window.ipcRenderer.createRoom(token, { candidateName, role, createdBy: userEmail ?? "" })
         setCandidateName("")
         setRole("")
         await loadRooms()
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not create room")
+        setError(err instanceof Error ? err.message : "Couldn't create the session.")
       } finally {
         setCreating(false)
       }
     },
-    [token, candidateName, role, loadRooms],
+    [token, candidateName, role, userEmail, loadRooms],
   )
 
   const copyJoinCode = useCallback((room: BackendRoom) => {
@@ -288,54 +399,53 @@ function RoomsScreen({ token, onSelectRoom }: { token: string; onSelectRoom: (ro
   }, [])
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6 max-w-2xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-lg font-semibold">Interview Rooms</h1>
-      </header>
+    <div className="min-h-screen bg-background text-foreground p-6 max-w-2xl mx-auto font-display">
+      <Header eyebrow={userEmail ?? "Signed in"} title="Sessions" onLogout={onLogout} />
 
-      <form onSubmit={handleCreate} className="flex gap-2">
+      <form onSubmit={handleCreate} className="flex gap-2 mb-6">
         <input
           value={candidateName}
           onChange={(e) => setCandidateName(e.target.value)}
           placeholder="Candidate name"
-          className="flex-1 bg-card border border-border rounded px-3 py-2 text-sm"
+          className="flex-1 bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
         <input
           value={role}
           onChange={(e) => setRole(e.target.value)}
           placeholder="Role"
-          className="flex-1 bg-card border border-border rounded px-3 py-2 text-sm"
+          className="flex-1 bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
         <button
           type="submit"
           disabled={creating || !candidateName.trim() || !role.trim()}
-          className="bg-primary text-primary-foreground font-medium rounded px-4 py-2 text-sm disabled:opacity-50"
+          className="bg-primary text-primary-foreground font-medium rounded px-4 py-2 text-sm disabled:opacity-40 whitespace-nowrap"
         >
-          {creating ? "Creating…" : "Create room"}
+          {creating ? "Creating…" : "New session"}
         </button>
       </form>
 
-      {error && <p className="text-sm text-accent">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-critical)] mb-4">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading rooms…</p>
+        <p className="text-sm text-muted-foreground font-mono">Loading…</p>
       ) : rooms.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No rooms yet — create one above.</p>
+        <div className="border border-dashed border-border rounded p-6 text-center">
+          <p className="text-sm text-muted-foreground">No sessions yet. Create one above to get a join code for the candidate.</p>
+        </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-border border border-border rounded">
           {rooms.map((room) => (
-            <li
-              key={room.id}
-              className="flex items-center justify-between bg-card border border-border rounded px-3 py-2 text-sm"
-            >
-              <button className="text-left flex-1" onClick={() => onSelectRoom(room)}>
-                <span className="font-medium">{room.candidate_name}</span>
-                <span className="text-muted-foreground"> — {room.role}</span>
-                <span className="ml-2 text-xs uppercase text-secondary-foreground">{room.status}</span>
+            <li key={room.id} className="flex items-center justify-between px-3 py-3 text-sm hover:bg-card/60">
+              <button className="text-left flex-1 flex items-center gap-3" onClick={() => onSelectRoom(room)}>
+                <StatusDot tone={statusTone(room.status)} pulse={room.status === "active"} />
+                <span>
+                  <span className="font-medium">{room.candidate_name}</span>
+                  <span className="text-muted-foreground"> — {room.role}</span>
+                </span>
               </button>
               <button
                 onClick={() => copyJoinCode(room)}
-                className="font-mono text-xs text-secondary-foreground border border-border rounded px-2 py-1"
+                className="font-mono text-xs text-secondary-foreground border border-border rounded px-2 py-1 hover:text-foreground shrink-0"
               >
                 {copiedId === room.id ? "Copied" : room.join_code}
               </button>
@@ -347,7 +457,21 @@ function RoomsScreen({ token, onSelectRoom }: { token: string; onSelectRoom: (ro
   )
 }
 
-function LiveRoomScreen({ room, token, onBack }: { room: BackendRoom; token: string; onBack: () => void }) {
+function riskTone(score: number): "signal" | "warning" | "critical" {
+  return score >= 60 ? "critical" : score >= 25 ? "warning" : "signal"
+}
+
+function LiveRoomScreen({
+  room,
+  token,
+  onBack,
+  onLogout,
+}: {
+  room: BackendRoom
+  token: string
+  onBack: () => void
+  onLogout: () => void
+}) {
   const [events, setEvents] = useState<RoomChannelMessage[]>([])
   const [riskScore, setRiskScore] = useState(0)
 
@@ -367,30 +491,44 @@ function LiveRoomScreen({ room, token, onBack }: { room: BackendRoom; token: str
     }
   }, [room.id, token])
 
-  return (
-    <div className="min-h-screen bg-background text-foreground p-6 space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <button onClick={onBack} className="text-sm text-secondary-foreground mb-1">
-            ← Rooms
-          </button>
-          <h1 className="text-lg font-semibold">
-            {room.candidate_name} — {room.role}
-          </h1>
-        </div>
-        <div className="text-sm font-mono text-secondary-foreground">Risk: {riskScore}</div>
-      </header>
+  const tone = riskTone(riskScore)
+  const toneColor =
+    tone === "signal" ? "text-[var(--color-signal)]" : tone === "warning" ? "text-[var(--color-warning)]" : "text-[var(--color-critical)]"
 
-      <VideoRoom wsBaseUrl={WS_BASE_URL} roomId={room.id} token={token} />
+  return (
+    <div className="min-h-screen bg-background text-foreground p-6 max-w-3xl mx-auto font-display">
+      <Header
+        eyebrow="Live session"
+        title={`${room.candidate_name} — ${room.role}`}
+        onBack={onBack}
+        onLogout={onLogout}
+        right={
+          <div className="flex items-center gap-2">
+            <StatusDot tone={tone} pulse={tone !== "signal"} />
+            <span className={`font-mono text-sm ${toneColor}`}>{riskScore}</span>
+          </div>
+        }
+      />
+
+      {/* Framed like a camera viewfinder — this is literally the point of the screen. */}
+      <div className="relative border border-border rounded p-3 mb-4">
+        <span className="absolute -top-px -left-px h-3 w-3 border-t border-l border-[var(--color-signal)]" />
+        <span className="absolute -top-px -right-px h-3 w-3 border-t border-r border-[var(--color-signal)]" />
+        <span className="absolute -bottom-px -left-px h-3 w-3 border-b border-l border-[var(--color-signal)]" />
+        <span className="absolute -bottom-px -right-px h-3 w-3 border-b border-r border-[var(--color-signal)]" />
+        <VideoRoom wsBaseUrl={WS_BASE_URL} roomId={room.id} token={token} />
+      </div>
 
       <div className="bg-card border border-border rounded p-3">
-        <h2 className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Event log</h2>
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-secondary-foreground mb-2">Event log</h2>
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No events yet.</p>
+          <p className="text-sm text-muted-foreground">Nothing flagged yet.</p>
         ) : (
-          <ul className="space-y-1 font-mono text-xs">
+          <ul className="space-y-1 font-mono text-xs max-h-64 overflow-y-auto">
             {events.map((msg, i) => (
-              <li key={i}>{JSON.stringify("payload" in msg ? msg.payload : msg)}</li>
+              <li key={i} className="text-secondary-foreground">
+                {JSON.stringify("payload" in msg ? msg.payload : msg)}
+              </li>
             ))}
           </ul>
         )}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"go-server/internal/errors/apierr"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -59,7 +61,7 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 	}
 
 	if Email != "" {
-		return errors.New("We already send the code")
+		return apierr.Conflict("A verification code was already sent to this email", nil)
 	}
 
 	Email = ""
@@ -73,7 +75,7 @@ func (r *UserRepository) CreateTempUser(tempUser TempUser) error {
 	}
 
 	if Email != "" {
-		return errors.New("User with this data already exists")
+		return apierr.Conflict("A user with this email already exists", nil)
 	}
 
 	_, err = r.DB.Exec(ctx, `INSERT INTO temp_users

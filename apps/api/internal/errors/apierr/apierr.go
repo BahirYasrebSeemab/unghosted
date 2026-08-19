@@ -45,7 +45,7 @@ func Internal(err error) *Error {
 }
 
 func Conflict(message string, err error) *Error {
-	return New(http.StatusInternalServerError, "internal_error", message, err)
+	return New(http.StatusConflict, "conflict", message, err)
 }
 
 
