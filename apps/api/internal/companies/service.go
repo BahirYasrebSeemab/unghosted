@@ -54,6 +54,15 @@ func (s *CompanyService) CreateCompany(ctx context.Context, req CreateCompanyReq
 	return s.repo.CreateCompany(ctx, fullCompany)
 }
 
+func (s *CompanyService) ListCompanies(ctx context.Context) ([]Company, error) {
+	companies, err := s.repo.ListCompanies(ctx)
+	if err != nil {
+		return nil, apierr.Internal(err)
+	}
+
+	return companies, nil
+}
+
 func (s *CompanyService) DeleteCompany(ctx context.Context, id int) error {
 	err := s.repo.DeleteCompany(ctx, id)
 

@@ -5,6 +5,30 @@
     "": {
       "name": "unghosted",
     },
+    "packages/admin-web": {
+      "name": "@unghosted/admin-web",
+      "version": "0.0.0",
+      "dependencies": {
+        "@unghosted/shared": "workspace:*",
+        "axios": "^1.19.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4.3.3",
+        "@types/react": "^18.2.64",
+        "@types/react-dom": "^18.2.21",
+        "@typescript-eslint/eslint-plugin": "^7.1.1",
+        "@typescript-eslint/parser": "^7.1.1",
+        "@vitejs/plugin-react": "^4.2.1",
+        "eslint": "^8.57.0",
+        "eslint-plugin-react-hooks": "^4.6.0",
+        "eslint-plugin-react-refresh": "^0.4.5",
+        "tailwindcss": "^4.3.3",
+        "typescript": "^5.2.2",
+        "vite": "^5.1.6",
+      },
+    },
     "packages/candidate-app": {
       "name": "@unghosted/candidate-app",
       "version": "0.0.0",
@@ -397,6 +421,8 @@
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@7.18.0", "", { "dependencies": { "@typescript-eslint/types": "7.18.0", "eslint-visitor-keys": "^3.4.3" } }, "sha512-cDF0/Gf81QpY3xYyJKDV14Zwdmid5+uuENhjH2EqFaF0ni+yAyq/LzMaIJdhNJXZI7uLzwIlA+V7oWoyn6Curg=="],
 
     "@ungap/structured-clone": ["@ungap/structured-clone@1.3.3", "", {}, "sha512-60YRaenCQcVjYEKOcG824+DRGGIQ3VKErcBoAEDJZz5bKIs2ZG+X/H9Nk+Q6EVkwJk5QNApxbrc5QtBSwtrXAg=="],
+
+    "@unghosted/admin-web": ["@unghosted/admin-web@workspace:packages/admin-web"],
 
     "@unghosted/candidate-app": ["@unghosted/candidate-app@workspace:packages/candidate-app"],
 

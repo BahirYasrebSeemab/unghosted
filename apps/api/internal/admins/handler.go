@@ -3,7 +3,6 @@ package admins
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -30,18 +29,18 @@ func (h *AdminHandler) CheckAdmin(w http.ResponseWriter, r *http.Request) {
 
 	admin_token, isAdmin, err := h.service.CheckAdmin(ctx, data)
 
-	if isAdmin {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "admin_token",
-			Value:    admin_token,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   false,
-			SameSite: http.SameSiteLaxMode,
-			MaxAge:   60 * 21600,
-		})
-	} else {
-		fmt.Println(err)
-		http.Error(w, err.Error(), 500)
+	if !isAdmin {
+		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		return
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "admin_token",
+		Value:    admin_token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 21600,
+	})
 }

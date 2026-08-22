@@ -27,6 +27,33 @@ func (r *CompanyRepository) CreateCompany(ctx context.Context, company CompanyWi
 	return err
 }
 
+func (r *CompanyRepository) ListCompanies(ctx context.Context) ([]Company, error) {
+	const query = `
+		SELECT id, name, owner, admins, hrs, balance FROM Companies ORDER BY id
+	`
+
+	rows, err := r.DB.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var companies []Company
+	for rows.Next() {
+		var company Company
+		if err := rows.Scan(&company.Id, &company.Name, &company.Owner, &company.Admins, &company.Hrs, &company.Balance); err != nil {
+			return nil, err
+		}
+		companies = append(companies, company)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return companies, nil
+}
+
 func (r *CompanyRepository) DeleteCompany(ctx context.Context, id int) error {
 	const query = `
 		DELETE FROM Companies WHERE id = $1 

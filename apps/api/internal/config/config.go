@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Port		int	
+	Port		int
 	Env			string
 	Cert 		string
 	Key			string
@@ -16,11 +16,14 @@ type Config struct {
 	JWTSecret	string
 	JWTAccessExpiration	time.Duration
 	JWTRefreshExpiration time.Duration
+
+	AllowedOrigin string
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
 		JWTSecret: os.Getenv("JWT_SECRET"),
+		AllowedOrigin: getEnv("ADMIN_WEB_ORIGIN", "http://localhost:5175"),
 	}
 
 	jwtAccessExpMinutes, err := strconv.Atoi(getEnv("JWT_ACCESS_EXPIRATION_MINUTES", "60"))

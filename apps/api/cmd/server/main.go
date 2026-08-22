@@ -100,6 +100,7 @@ func run() error {
 		CompanyHandler:   companyHandler,
 		AdminService:     adminService,
 		AdminHandler:     adminHandler,
+		AllowedOrigin:    cfg.AllowedOrigin,
 	})
 
 	srv := server.New(":"+strconv.Itoa(cfg.Port), httpHandler)

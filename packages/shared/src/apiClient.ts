@@ -37,6 +37,24 @@ export interface JoinRoomResult {
   room: Pick<BackendRoom, "id" | "candidate_name" | "role">
 }
 
+// Matches apps/api's companies/model.go Company struct's own JSON tags exactly (PascalCase —
+// that package's convention, not BackendRoom's snake_case; reflects the real wire shape).
+export interface BackendCompany {
+  Id: number
+  Name: string
+  Owner: string
+  Admins: string[]
+  Hrs: string[]
+  Balance: number
+}
+
+export interface CreateCompanyInput {
+  name: string
+  ownerName: string
+  ownerEmail: string
+  ownerPassword: string
+}
+
 export class ApiClient {
   private http: AxiosInstance
   private refreshCookie?: string

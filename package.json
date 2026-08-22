@@ -12,7 +12,10 @@
     "lint:candidate": "bun run --cwd packages/candidate-app lint",
     "dev:interviewer": "bun run --cwd packages/interviewer-app dev",
     "build:interviewer": "bun run --cwd packages/interviewer-app build",
-    "lint:interviewer": "bun run --cwd packages/interviewer-app lint"
+    "lint:interviewer": "bun run --cwd packages/interviewer-app lint",
+    "dev:admin": "bun run --cwd packages/admin-web dev",
+    "build:admin": "bun run --cwd packages/admin-web build",
+    "lint:admin": "bun run --cwd packages/admin-web lint"
   },
   "trustedDependencies": [
     "electron",

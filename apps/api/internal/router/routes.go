@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 
 	"go-server/internal/admins"
 	"go-server/internal/auth"
@@ -22,6 +23,7 @@ type Dependencies struct {
 	CompanyHandler   *companies.CompanyHandler
 	AdminService     *admins.AdminService
 	AdminHandler     *admins.AdminHandler
+	AllowedOrigin    string
 }
 
 func New(deps Dependencies) http.Handler {
@@ -29,7 +31,15 @@ func New(deps Dependencies) http.Handler {
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	// TODO: Cors middleware here
+	// admin-web is the only browser client hitting this API directly (the Electron apps go
+	// through their own main process, which isn't subject to CORS) — scoped to its exact origin
+	// since credentialed requests (the admin_token cookie) can't use a wildcard origin.
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{deps.AllowedOrigin},
+		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type"},
+		AllowCredentials: true,
+	}))
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -80,6 +90,7 @@ func New(deps Dependencies) http.Handler {
 
 		r.Route("/companies", func(r chi.Router) {
 			r.Use(deps.AdminService.AdminMiddleware)
+			r.Get("/list", deps.CompanyHandler.ListCompanies)
 			r.Post("/create", deps.CompanyHandler.CreateCompany)
 			r.Delete("/delete", deps.CompanyHandler.DeleteCompany)
 			r.Patch("/reduceBalance", deps.CompanyHandler.ReduceBalance)

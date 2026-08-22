@@ -108,8 +108,8 @@ export default function App() {
   )
 }
 
-// There's no public registration for a company/admin account — those are provisioned by an
-// admin on the backend (see apps/api's companies.CreateCompany) — so this is login-only.
+// There's no public registration for a company account — those are provisioned by an admin on
+// the backend (see apps/api's companies.CreateCompany) — so this is login-only.
 function AuthGate({ onLogin }: { onLogin: (token: string) => void }) {
   return <LoginScreen onLogin={onLogin} />
 }

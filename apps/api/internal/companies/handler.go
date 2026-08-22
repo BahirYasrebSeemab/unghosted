@@ -38,6 +38,18 @@ func (h *CompanyHandler) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (h *CompanyHandler) ListCompanies(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	companies, err := h.service.ListCompanies(ctx)
+	if err != nil {
+		httputil.Error(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, companies)
+}
+
 func (h *CompanyHandler) DeleteCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
