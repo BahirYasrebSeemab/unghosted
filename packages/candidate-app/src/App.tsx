@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { ConcentrationMonitor, type ConcentrationReading } from "./concentrationMonitor"
 import { scanWindows } from "../electron/windowScanner";
+import { AuthGate, decodeJwtSub } from "./Auth"
 
 import { VideoRoom } from "@unghosted/shared";
 
@@ -373,6 +374,14 @@ export default function App() {
   const lastKeystrokeRef = useRef<number>(0)
   const gazeAlertCooldownRef = useRef(0);
 
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  const handleLogin = useCallback((token: string) => {
+    setAccessToken(token)
+    setUserEmail(decodeJwtSub(token))
+  }, [])
+
   const [roomSession, setRoomSession] = useState<{ roomId: string; token: string } | null>(null)
   const [joinCode, setJoinCode] = useState("")
   const [joining, setJoining] = useState(false)
@@ -736,6 +745,10 @@ export default function App() {
   const criticalCount = events.filter((e) => e.severity === "critical").length
   const warningCount = events.filter((e) => e.severity === "warning").length
 
+  if (!accessToken) {
+    return <AuthGate onLogin={handleLogin} />
+  }
+
   if (!roomSession) {
     return (
       <div className="min-h-screen bg-[#07090e] text-slate-200 font-sans flex items-center justify-center p-6">
@@ -759,6 +772,14 @@ export default function App() {
           >
             {joining ? "Joining…" : "Join"}
           </button>
+          {userEmail && (
+            <p className="text-xs text-center text-slate-600">
+              Signed in as {userEmail}.{" "}
+              <button type="button" onClick={() => setAccessToken(null)} className="underline underline-offset-2">
+                Sign out
+              </button>
+            </p>
+          )}
         </form>
       </div>
     )

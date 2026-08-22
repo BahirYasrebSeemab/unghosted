@@ -119,7 +119,7 @@ func (s *UserService) Login(ctx context.Context, loginRequest LogInData) (*AuthR
 	// 	return nil, fmt.Errorf("Error hashing email")
 	// }
 
-	accessTokenString, err := s.issueToken(loginRequest.Email)
+	accessTokenString, err := s.issueToken(loginRequest.Email, usr.CompanyRole)
 	fmt.Print("JWT TOKENS created!!", accessTokenString)
 
 	if err != nil {
@@ -144,11 +144,17 @@ func (s *UserService) Login(ctx context.Context, loginRequest LogInData) (*AuthR
 
 }
 
-func (s *UserService) issueToken(cachedMessage string) (string, error) {
+func (s *UserService) issueToken(cachedMessage string, companyRole *string) (string, error) {
+	role := ""
+	if companyRole != nil {
+		role = *companyRole
+	}
+
 	claimsAccessToken := jwt.MapClaims{
-		"sub": cachedMessage,
-		"exp": time.Now().Add(s.jwtAccessExpiration).Unix(),
-		"iat": time.Now().Unix(),
+		"sub":          cachedMessage,
+		"company_role": role,
+		"exp":          time.Now().Add(s.jwtAccessExpiration).Unix(),
+		"iat":          time.Now().Unix(),
 	}
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claimsAccessToken)
@@ -219,12 +225,12 @@ func (s *UserService) Refresh(ctx context.Context, rawToken string) (string, err
 		return "", apierr.Unauthorized("refresh token has expired", nil)
 	}
 
-	hashedEmail, err := hashing.CreateHash(stored.Email)
+	usr, err := s.repo.GetRealUser(ctx, stored.Email)
 	if err != nil {
 		return "", apierr.Internal(err)
 	}
 
-	newAccessToken, err := s.issueToken(hashedEmail)
+	newAccessToken, err := s.issueToken(stored.Email, usr.CompanyRole)
 	if err != nil {
 		return "", apierr.Internal(err)
 	}

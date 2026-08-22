@@ -53,6 +53,7 @@ type User struct {
 	Email     		string   `json:"Email" validate:"email,required"`
 	Password  		string   `json:"-" validate:"required,min=6"`
 	Companies 		[]string `json:"Companies"`
+	CompanyRole		*string  `json:"CompanyRole,omitempty"`
 
 	CreatedAt		time.Time	`json:"CreatedAt"`
 	UpdatedAt		time.Time	`json:"UpdatedAt"`

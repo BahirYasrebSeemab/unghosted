@@ -77,9 +77,9 @@ func (s *AdminService) issueToken(cachedMessage string) (string, error) {
 func (s *AdminService) AdminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		cookie, err := r.Cookie("refresh_token")
+		cookie, err := r.Cookie("admin_token")
 		if err != nil {
-			http.Error(w, "Refresh token not found", http.StatusUnauthorized)
+			http.Error(w, "Admin token not found", http.StatusUnauthorized)
 			return
 		}
 

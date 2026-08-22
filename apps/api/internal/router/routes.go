@@ -79,7 +79,7 @@ func New(deps Dependencies) http.Handler {
 		r.Get("/auth/refresh", deps.AuthHandler.Refresh)
 
 		r.Route("/companies", func(r chi.Router) {
-			r.Use(mdw.AuthMiddleware(deps.AuthService))
+			r.Use(deps.AdminService.AdminMiddleware)
 			r.Post("/create", deps.CompanyHandler.CreateCompany)
 			r.Delete("/delete", deps.CompanyHandler.DeleteCompany)
 			r.Patch("/reduceBalance", deps.CompanyHandler.ReduceBalance)

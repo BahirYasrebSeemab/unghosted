@@ -45,4 +45,3 @@ Founders school should help with that, but cold emails can go now
 - (?) JWT access tokens Postgres -> Redis
 - Company logic
 - WebSockets (Roleplay: are you taking or giving ?) Rooms
-

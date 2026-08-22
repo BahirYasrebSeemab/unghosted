@@ -28,9 +28,9 @@ func (r *UserRepository) CreateUser(ctx context.Context, user User) error {
 	fmt.Println(user.Name, " ", user.Email, " ", user.Password, " ", user.Companies)
 
 	_, err := r.DB.Exec(ctx, `INSERT INTO users
-		(name, email , password , companies)
-		VALUES ($1 , $2 , $3 , $4)
-	`, user.Name, user.Email, user.Password, user.Companies)
+		(name, email , password , companies, company_role)
+		VALUES ($1 , $2 , $3 , $4 , $5)
+	`, user.Name, user.Email, user.Password, user.Companies, user.CompanyRole)
 
 	if err != nil {
 		return err
@@ -130,8 +130,8 @@ func (r *UserRepository) GetRealUser(ctx context.Context, UserEmail string) (Use
 	var user User
 
 	err := r.DB.QueryRow(ctx,
-		`SELECT name, email, password FROM users WHERE email = $1`, UserEmail).
-		Scan(&user.Name, &user.Email, &user.Password)
+		`SELECT name, email, password, company_role FROM users WHERE email = $1`, UserEmail).
+		Scan(&user.Name, &user.Email, &user.Password, &user.CompanyRole)
 
 	if err != nil {
 		return User{}, err

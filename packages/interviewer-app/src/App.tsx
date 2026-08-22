@@ -14,6 +14,18 @@ function decodeJwtSub(token: string): string | null {
   }
 }
 
+// This app is for company accounts only — an empty company_role means the account is a plain
+// candidate (see apps/api's auth/service.go, which stamps that claim at login/refresh time).
+function decodeCompanyRole(token: string): string {
+  try {
+    const payload = token.split(".")[1]
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    return JSON.parse(json).company_role ?? ""
+  } catch {
+    return ""
+  }
+}
+
 type RoomStatus = "scheduled" | "active" | "ended"
 
 // The one recurring device this app is built around: a tally light, the on-air indicator on a
@@ -37,21 +49,41 @@ function statusTone(status: RoomStatus): "signal" | "warning" | "critical" | "of
 export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [companyRole, setCompanyRole] = useState<string>("")
   const [selectedRoom, setSelectedRoom] = useState<BackendRoom | null>(null)
 
   const handleLogin = useCallback((token: string) => {
     setAccessToken(token)
     setUserEmail(decodeJwtSub(token))
+    setCompanyRole(decodeCompanyRole(token))
   }, [])
 
   const handleLogout = useCallback(() => {
     setAccessToken(null)
     setUserEmail(null)
+    setCompanyRole("")
     setSelectedRoom(null)
   }, [])
 
   if (!accessToken) {
     return <AuthGate onLogin={handleLogin} />
+  }
+
+  if (!companyRole) {
+    return (
+      <AuthShell>
+        <p className="text-sm text-center text-secondary-foreground">
+          This app is for company accounts only.
+        </p>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full mt-4 bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm"
+        >
+          Sign out
+        </button>
+      </AuthShell>
+    )
   }
 
   if (selectedRoom) {
@@ -69,33 +101,17 @@ export default function App() {
     <RoomsScreen
       token={accessToken}
       userEmail={userEmail}
+      companyRole={companyRole}
       onSelectRoom={setSelectedRoom}
       onLogout={handleLogout}
     />
   )
 }
 
-// There's no browser chrome / URL bar in this Electron window to navigate between auth screens,
-// so login/register live behind one in-app switch instead of separate routes.
+// There's no public registration for a company/admin account — those are provisioned by an
+// admin on the backend (see apps/api's companies.CreateCompany) — so this is login-only.
 function AuthGate({ onLogin }: { onLogin: (token: string) => void }) {
-  const [screen, setScreen] = useState<"login" | "register">("login")
-  const [prefillEmail, setPrefillEmail] = useState("")
-
-  if (screen === "register") {
-    return (
-      <RegisterScreen
-        onDone={(email) => {
-          setPrefillEmail(email)
-          setScreen("login")
-        }}
-        onBackToLogin={() => setScreen("login")}
-      />
-    )
-  }
-
-  return (
-    <LoginScreen onLogin={onLogin} onGoToRegister={() => setScreen("register")} initialEmail={prefillEmail} />
-  )
+  return <LoginScreen onLogin={onLogin} />
 }
 
 function AuthShell({ children }: { children: React.ReactNode }) {
@@ -117,16 +133,8 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function LoginScreen({
-  onLogin,
-  onGoToRegister,
-  initialEmail,
-}: {
-  onLogin: (token: string) => void
-  onGoToRegister: () => void
-  initialEmail: string
-}) {
-  const [email, setEmail] = useState(initialEmail)
+function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -174,129 +182,7 @@ function LoginScreen({
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
-        <p className="text-sm text-center text-secondary-foreground pt-2">
-          New here?{" "}
-          <button type="button" onClick={onGoToRegister} className="text-foreground underline underline-offset-2">
-            Create an account
-          </button>
-        </p>
       </form>
-    </AuthShell>
-  )
-}
-
-// Registration is two steps against the real backend: sendCode (creates a pending temp user,
-// emails a verification code) then register (confirms the code, creates the real user).
-function RegisterScreen({
-  onDone,
-  onBackToLogin,
-}: {
-  onDone: (email: string) => void
-  onBackToLogin: () => void
-}) {
-  const [step, setStep] = useState<"details" | "code">("details")
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [code, setCode] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const handleSendCode = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
-      setLoading(true)
-      setError(null)
-      try {
-        await window.ipcRenderer.sendCode(name, email, password)
-        setStep("code")
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't send a verification code.")
-      } finally {
-        setLoading(false)
-      }
-    },
-    [name, email, password],
-  )
-
-  const handleConfirm = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
-      setLoading(true)
-      setError(null)
-      try {
-        await window.ipcRenderer.register(email, Number(code))
-        onDone(email)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "That code didn't match.")
-      } finally {
-        setLoading(false)
-      }
-    },
-    [email, code, onDone],
-  )
-
-  return (
-    <AuthShell>
-      {step === "details" ? (
-        <form onSubmit={handleSendCode} className="space-y-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            autoFocus
-          />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
-          {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || !name || !email || !password}
-            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40"
-          >
-            {loading ? "Sending…" : "Send verification code"}
-          </button>
-          <p className="text-sm text-center text-secondary-foreground pt-2">
-            <button type="button" onClick={onBackToLogin} className="underline underline-offset-2">
-              Back to sign in
-            </button>
-          </p>
-        </form>
-      ) : (
-        <form onSubmit={handleConfirm} className="space-y-3">
-          <p className="text-sm text-secondary-foreground text-center">
-            Enter the code sent to <span className="text-foreground">{email}</span>.
-          </p>
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Verification code"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm font-mono tracking-widest text-center outline-none focus:ring-1 focus:ring-ring"
-            autoFocus
-          />
-          {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || !code.trim()}
-            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40"
-          >
-            {loading ? "Confirming…" : "Confirm"}
-          </button>
-        </form>
-      )}
     </AuthShell>
   )
 }
@@ -341,11 +227,13 @@ function Header({
 function RoomsScreen({
   token,
   userEmail,
+  companyRole,
   onSelectRoom,
   onLogout,
 }: {
   token: string
   userEmail: string | null
+  companyRole: string
   onSelectRoom: (room: BackendRoom) => void
   onLogout: () => void
 }) {
@@ -400,7 +288,7 @@ function RoomsScreen({
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6 max-w-2xl mx-auto font-display">
-      <Header eyebrow={userEmail ?? "Signed in"} title="Sessions" onLogout={onLogout} />
+      <Header eyebrow={`${userEmail ?? "Signed in"} · ${companyRole}`} title="Sessions" onLogout={onLogout} />
 
       <form onSubmit={handleCreate} className="flex gap-2 mb-6">
         <input

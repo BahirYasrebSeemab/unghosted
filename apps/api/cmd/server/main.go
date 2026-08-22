@@ -75,7 +75,7 @@ func run() error {
 	roomHandler := room.NewRoomHandler(roomService)
 
 	companyRepo := companies.NewRepository(pool)
-	companyService := companies.NewCompanyService(companyRepo)
+	companyService := companies.NewCompanyService(companyRepo, authRepo)
 	companyHandler := companies.NewCompanyHandler(companyService)
 
 	adminRepo := admins.NewRepository(pool)

@@ -79,6 +79,12 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 		log.Fatal(err)
 	}
 
+	_, err = pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_role TEXT`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS Companies(
 			id SERIAL PRIMARY KEY,

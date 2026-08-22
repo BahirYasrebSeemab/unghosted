@@ -3,7 +3,6 @@ package companies
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"go-server/internal/pkg/httputil"
 	"net/http"
 )
@@ -21,31 +20,19 @@ func NewCompanyHandler(service *CompanyService) *CompanyHandler {
 func (h *CompanyHandler) CreateCompany(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
-	var Name OnlyName
-	var Email string
-
-	err := json.NewDecoder(r.Body).Decode(&Name)
-	Email, ok := r.Context().Value("Email").(string)
-	if !ok {
-		fmt.Println(Email)
-		http.Error(w, "Unauthorized1", http.StatusUnauthorized)
-		return
-	}
+	var req CreateCompanyRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
 		http.Error(w, ("Incorrect data format"), http.StatusBadRequest)
 		return
 	}
 
-	company := &NotReadyCompany{
-		Name:  Name.Name,
-		Owner: Email,
-	}
-
-	err = h.service.CreateCompany(ctx, *company)
+	err = h.service.CreateCompany(ctx, req)
 
 	if err != nil {
 		httputil.Error(w, err)
+		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -122,13 +109,12 @@ func (h *CompanyHandler) IncreaseBalance(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = h.service.ReduceBalance(ctx, request.Value, request.Id)
+	err = h.service.IncreaseBalance(ctx, request.Value, request.Id)
 
 	if err != nil {
 		httputil.Error(w, err)
 	}
 
-	
 	w.WriteHeader(http.StatusOK)
 }
 
