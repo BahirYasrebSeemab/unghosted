@@ -33,19 +33,30 @@ func NewRepository(DB *pgxpool.Pool) *RoomRepository {
 	}
 }
 
-func (r *RoomRepository) CreateRoom(ctx context.Context, req CreateRoomRequest) (*Room, error) {
-	const query = `
-		INSERT INTO rooms (candidate_name, join_code, role, created_by)
+// columns is the shared SELECT/RETURNING list for every query that scans a full Room — kept in
+// one place so the scan order below never drifts out of sync with the query text. join_code is
+// wrapped in COALESCE because rooms no longer generate one (see CreateRoom) — candidates join by
+// the room's real UUID now, not a short code — so it's NULL for every new room.
+const columns = `id, candidate_name, created_at, status, created_by,
+	started_at, ended_at, COALESCE(join_code, '') AS join_code, role,
+	join_status, requested_by, company_id`
+
+func scanRoom(row pgx.Row, room *Room) error {
+	return row.Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
+		&room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+		&room.JoinStatus, &room.RequestedBy, &room.CompanyID,
+	)
+}
+
+func (r *RoomRepository) CreateRoom(ctx context.Context, req CreateRoomRequest, companyID int) (*Room, error) {
+	query := `
+		INSERT INTO rooms (candidate_name, role, created_by, company_id)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, candidate_name, created_at, join_code, role, created_by
-	`
+		RETURNING ` + columns
 
 	var room Room
-	// Generate it on a whim for now
-	
-	err := r.DB.QueryRow(ctx, query, req.CandidateName, "DUMM33", req.Role, req.CreatedBy).
-		Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.JoinCode, &room.Role, &room.CreatedBy)
-	
+	err := scanRoom(r.DB.QueryRow(ctx, query, req.CandidateName, req.Role, req.CreatedBy, companyID), &room)
+
 	if err != nil {
 		return nil, err
 	}
@@ -53,15 +64,15 @@ func (r *RoomRepository) CreateRoom(ctx context.Context, req CreateRoomRequest) 
 	return &room, nil
 }
 
-func (r *RoomRepository) ListRooms(ctx context.Context) ([]Room, error) {
-	const query = `
-		SELECT id, created_by, created_at, candidate_name,
-			   status, started_at, ended_at, join_code, role, join_status, requested_by
+func (r *RoomRepository) ListRooms(ctx context.Context, companyID int) ([]Room, error) {
+	query := `
+		SELECT ` + columns + `
 		FROM rooms
+		WHERE company_id = $1
 		ORDER BY created_at DESC
 	`
 
-	rows, err := r.DB.Query(ctx, query)
+	rows, err := r.DB.Query(ctx, query, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,11 +82,7 @@ func (r *RoomRepository) ListRooms(ctx context.Context) ([]Room, error) {
 	var rooms []Room
 	for rows.Next() {
 		var room Room
-		if err := rows.Scan(
-			&room.ID, &room.CreatedBy, &room.CreatedAt, &room.CandidateName,
-			&room.Status, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
-			&room.JoinStatus, &room.RequestedBy,
-		); err != nil {
+		if err := scanRoom(rows, &room); err != nil {
 			return nil, err
 		}
 
@@ -90,25 +97,14 @@ func (r *RoomRepository) ListRooms(ctx context.Context) ([]Room, error) {
 }
 
 func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, error) {
-	const query = `
-		SELECT id, candidate_name, created_at, status, created_by,
-			   started_at, ended_at, join_code, role, join_status, requested_by
-		FROM rooms
-		WHERE id = $1
-	`
+	query := `SELECT ` + columns + ` FROM rooms WHERE id = $1`
 
 	var room Room
-
-	err := r.DB.QueryRow(ctx, query, id).
-			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
-				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
-				 &room.JoinStatus, &room.RequestedBy,
-			 )
+	err := scanRoom(r.DB.QueryRow(ctx, query, id), &room)
 
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrRoomNotFound
 	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -117,19 +113,10 @@ func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, erro
 }
 
 func (r *RoomRepository) GetByJoinCode(ctx context.Context, joinCode string) (*Room, error) {
-	const query = `
-		SELECT id, candidate_name, created_at, status, created_by,
-			   started_at, ended_at, join_code, role, join_status, requested_by
-		FROM rooms
-		WHERE join_code = $1
-	`
+	query := `SELECT ` + columns + ` FROM rooms WHERE join_code = $1`
 
 	var room Room
-	err := r.DB.QueryRow(ctx, query, joinCode).
-			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
-				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
-				 &room.JoinStatus, &room.RequestedBy,
-			 )
+	err := scanRoom(r.DB.QueryRow(ctx, query, joinCode), &room)
 
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrRoomNotFound
@@ -144,25 +131,18 @@ func (r *RoomRepository) GetByJoinCode(ctx context.Context, joinCode string) (*R
 }
 
 func (r *RoomRepository) RequestJoin(ctx context.Context, id uuid.UUID, requestedBy string) (*Room, error) {
-	const query = `
+	query := `
 		UPDATE rooms
 		SET join_status = 'requested', requested_by = $2
 		WHERE id = $1
-		RETURNING id, candidate_name, created_at, status, created_by,
-				  started_at, ended_at, join_code, role, join_status, requested_by
-	`
+		RETURNING ` + columns
 
 	var room Room
-	err := r.DB.QueryRow(ctx, query, id, requestedBy).
-			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
-				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
-				 &room.JoinStatus, &room.RequestedBy,
-			 )
+	err := scanRoom(r.DB.QueryRow(ctx, query, id, requestedBy), &room)
 
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrRoomNotFound
 	}
-
 	if err != nil {
 		return nil, err
 	}
@@ -171,25 +151,58 @@ func (r *RoomRepository) RequestJoin(ctx context.Context, id uuid.UUID, requeste
 }
 
 func (r *RoomRepository) SetJoinStatus(ctx context.Context, id uuid.UUID, status JoinStatus) (*Room, error) {
-	const query = `
+	query := `
 		UPDATE rooms
 		SET join_status = $2
 		WHERE id = $1
-		RETURNING id, candidate_name, created_at, status, created_by,
-				  started_at, ended_at, join_code, role, join_status, requested_by
-	`
+		RETURNING ` + columns
 
 	var room Room
-	err := r.DB.QueryRow(ctx, query, id, status).
-			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
-				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
-				 &room.JoinStatus, &room.RequestedBy,
-			 )
+	err := scanRoom(r.DB.QueryRow(ctx, query, id, status), &room)
 
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrRoomNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 
+	return &room, nil
+}
+
+func (r *RoomRepository) MarkActive(ctx context.Context, id uuid.UUID) (*Room, error) {
+	query := `
+		UPDATE rooms
+		SET status = 'active', started_at = now()
+		WHERE id = $1
+		RETURNING ` + columns
+
+	var room Room
+	err := scanRoom(r.DB.QueryRow(ctx, query, id), &room)
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &room, nil
+}
+
+func (r *RoomRepository) MarkEnded(ctx context.Context, id uuid.UUID) (*Room, error) {
+	query := `
+		UPDATE rooms
+		SET status = 'ended', ended_at = now()
+		WHERE id = $1
+		RETURNING ` + columns
+
+	var room Room
+	err := scanRoom(r.DB.QueryRow(ctx, query, id), &room)
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

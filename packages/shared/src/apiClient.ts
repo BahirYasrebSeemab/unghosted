@@ -24,6 +24,7 @@ export interface BackendRoom {
   status: "scheduled" | "active" | "ended"
   join_status: RoomJoinStatus
   requested_by?: string | null
+  company_id?: number | null
 }
 
 export interface CreateRoomInput {
@@ -123,6 +124,13 @@ export class ApiClient {
 
   async rejectJoin(token: string, roomId: string): Promise<BackendRoom> {
     const res = await this.http.post(`/v1/room/${roomId}/reject-join`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return res.data
+  }
+
+  async endRoom(token: string, roomId: string): Promise<BackendRoom> {
+    const res = await this.http.post(`/v1/room/${roomId}/end`, null, {
       headers: { Authorization: `Bearer ${token}` },
     })
     return res.data

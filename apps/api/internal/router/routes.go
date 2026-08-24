@@ -67,6 +67,7 @@ func New(deps Dependencies) http.Handler {
 					r.Post("/request-join", deps.RoomHandler.RequestJoin)
 					r.Post("/accept-join", deps.RoomHandler.AcceptJoin)
 					r.Post("/reject-join", deps.RoomHandler.RejectJoin)
+					r.Post("/end", deps.RoomHandler.End)
 					r.Get("/ws", deps.SignalingHandler.HandleConnection)
 					// r.Get("/websocket", deps.ViewerWsHandler.ServeWs)
 					//

@@ -30,4 +30,5 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   getRoom: (token: string, roomId: string) => ipcRenderer.invoke('api:getRoom', token, roomId),
   acceptJoin: (token: string, roomId: string) => ipcRenderer.invoke('api:acceptJoin', token, roomId),
   rejectJoin: (token: string, roomId: string) => ipcRenderer.invoke('api:rejectJoin', token, roomId),
+  endRoom: (token: string, roomId: string) => ipcRenderer.invoke('api:endRoom', token, roomId),
 })

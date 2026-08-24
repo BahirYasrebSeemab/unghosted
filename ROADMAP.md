@@ -1,149 +1,192 @@
 # UnGhosted Build Roadmap
 
-Living plan for the items in `TODO.md`. This file is the source of truth across sessions for
-**what's decided, what's open, and what's actually done** — update it whenever a decision is made
-or work lands, don't let it go stale. See `CLAUDE.md` for current-state architecture notes.
+Living plan — source of truth across sessions for **what's decided, what's open, and what's
+actually done**. Update it whenever a decision is made or work lands. See `CLAUDE.md` for
+current-state architecture notes (though as of this rewrite `CLAUDE.md` itself is stale in places
+— see "Docs known to be stale" below).
 
-## Ground truth
+## Ground truth (updated 2026-08-25 — supersedes everything below dated 2026-08-01)
 
-- Backend is being built in **Go by a separate backend team** — not built in this repo, not Supabase.
-- Backend model is **"rooms"**: interviewer creates a room, candidate joins it. Exact wire format
-  (REST/WS shapes, token format) not yet defined as of 2026-08-01.
-- Target: **two separately-built, separately-installed Electron apps** — interviewer app and
-  candidate app — instead of today's single app that does both.
+- The backend is **not** built by a separate team and is **not** external — it's a real Go
+  service live in this repo at `apps/api` (chi router, Postgres via `docker-compose.yml`,
+  migrations run inline as idempotent `CREATE TABLE IF NOT EXISTS`/`ALTER TABLE ... ADD COLUMN IF
+  NOT EXISTS` statements in `apps/api/internal/database/postgres.go` — no separate migration
+  tool/files).
+- Three frontend packages, not two: `packages/candidate-app` (kiosk + candidate room-join UI —
+  still has legacy interviewer-dashboard leftovers not yet pared out), `packages/interviewer-app`
+  (company dashboard: create rooms, accept/reject join requests, live monitoring view),
+  `packages/admin-web` (**new**, plain browser app, not Electron — platform-admin login/dashboard:
+  create companies, top up/reduce balance). `packages/shared` is no longer types-only — it also
+  holds `apiClient.ts`, `roomChannel.ts`, `peerManager.ts`, and a shared `VideoRoom.tsx`.
+- Auth is two entirely separate systems, on purpose:
+  - **Candidates and company staff** log into `users` (JWT access/refresh tokens). A nullable
+    `company_role` claim on the JWT distinguishes "just a candidate" from "logged in as part of a
+    company" — company membership itself lives on the `Companies` row (`owner`/`admins[]`/`hrs[]`
+    email arrays), not a foreign key on `users`.
+  - **Platform admins** (who create companies and manage their balances) are a fully separate
+    `admins`/`admin_tokens` table with a cookie-based session, checked by `AdminMiddleware`. Not
+    self-registered — see `apps/api/cmd/seedadmin` below.
+- Rooms are no longer joined by a short "join code" (`DUMM33` was a hardcoded placeholder that's
+  now fully retired). A room is joined by its real UUID via an **ask-to-join / accept** flow (see
+  below), and is billed in tokens against its owning company's balance.
 
-## Phase 0 — Scaffolding decisions (COMPLETE, 2026-08-01)
+## What's actually done (as of 2026-08-25)
 
-- [x] Monorepo vs. two repos → **one repo, Bun workspaces**
-- [x] Candidate accounts vs. one-time link → **one-time room link/code only, no candidate accounts**
-- [x] Draft API contract now vs. wait for backend team → **draft it now, hand to backend team as a starting spec**
-- [x] Multi-tenant vs. single-org → **multi-tenant SaaS from day one** (multiple client companies, each an org, own interviewers, data isolated between orgs)
-- [x] Auto-update now vs. defer → **defer**, manual installers until closer to real client rollout
+- **Auth split**: persistent candidate accounts + company accounts share one `users`/JWT system,
+  distinguished by `company_role`; admin login is a fully separate cookie-based system, deliberately
+  kept (not merged into the JWT system).
+- **Admin extracted to its own web app** (`packages/admin-web`) — admin auth is cookie-based,
+  which only makes sense in a real browser (native cookie jar), not Electron's main process. CORS
+  (`github.com/go-chi/cors`) added to `apps/api`, scoped to `admin-web`'s exact origin
+  (`ADMIN_WEB_ORIGIN` env var, default `http://localhost:5175`).
+- **Room join redesigned end to end**: candidate pastes a room's real UUID → `GET
+  /v1/room/{roomID}` preview (candidate name/role) → `POST .../request-join` → interviewer polls
+  and sees an "X is asking to join" banner → `POST .../accept-join` (also starts the billing
+  clock, gated on balance — see below) or `.../reject-join` → candidate polls until accepted →
+  opens the room's `/ws` session with their normal access token (no separate "room token" concept
+  anymore) → interviewer calls `POST .../end` when the interview is over (stops the clock, charges
+  tokens). The old `POST /v1/room/join` (by join-code) endpoint never existed server-side and is
+  now fully replaced, not just worked around.
+- **Company-scoped rooms**: each company only sees its own rooms now (`rooms.company_id`,
+  resolved at creation time via a new `GetCompanyByMemberEmail` lookup against
+  `Companies.owner/admins/hrs`). This was flatly broken before this pass — `ListRooms` had zero
+  filtering and returned every room across every company.
+- **Token billing**: 10 tokens per 15 minutes, charged **proportionally** at `end` (not rounded up
+  to a full block) based on actual `started_at`→`ended_at` elapsed time. `accept-join` blocks with
+  a 403 if the owning company has less than 10 tokens.
+- **`apps/api/cmd/seedadmin`**: a CLI to hash+insert (or reset the password of) an admin account
+  directly against Postgres — needed because admins aren't self-registered, so a fresh/wiped DB
+  has no way to create the first one. `go run ./cmd/seedadmin -email <e> -password <p>` from
+  `apps/api`. Along the way, fixed a real bug in the shared `db.NewPostgresPool` `.env` loader: it
+  only checked the current directory, so running anything from `apps/api` (whose parent is `apps/`,
+  *not* the repo root — two levels up, not one) silently fell through to Postgres defaulting the
+  connection to the OS username. Now checks both.
 
-## Phase list (not yet started unless noted)
+## Deferred / explicitly not done yet
 
-1. **Scaffolding** — repo/workspace structure, two app shells, shared package. *(Phase 0 questions block this.)*
-2. **Auth** — login UI + integration once Go backend auth endpoints exist. Endpoint list already drafted (see Decisions log 2026-08-01) and ready to hand to backend team.
-3. **UI redesign** — not backend-dependent, can happen anytime. Current UI reads as generic dark-SaaS-template (emoji icons, corner-bracket decorations, default emerald/amber/red triad). Use `frontend-design` skill when doing this.
-4. **Builtin code editor (Monaco)** — not backend-dependent besides autosave endpoint; can be prototyped in the current single app.
-5. **Embedded browser in kiosk (WebContentsView)** — needs a product decision first: restricted allow-list browsing vs. open sandboxed browsing.
-6. **Builtin chat** — needs backend (messages/files endpoints) + auth first.
-7. **Mac build** — do after core features stabilize on Windows. Blocked specifically on: porting `windowScanner.ts` (Win32-only) to macOS equivalent, code-signing/notarization setup, and re-testing kiosk-lock behavior (Cmd+Tab/Mission Control are harder to suppress than Windows global shortcuts).
+- **HR account login provisioning.** `CompanyService.AddHr`/`AddAdmin` still just append a bare
+  name string to `Companies.hrs`/`admins` — no `users` row, no email/password, no real login. Only
+  the company *owner* gets a real account today (provisioned in `CreateCompany`). Company-scoping
+  and the shared-balance model are already correct for whenever this lands — balance is one int
+  per company row, not per-user, so multiple HR logins under one company will naturally share it.
+- **Visual redesign.** Current UI across all three apps is a dark, rounded, generic-AI-SaaS look.
+  Explicit target (2026-08-24): light navy/white palette, square (not rounded) corners, "real
+  dashboard" feel. Scoped as its own dedicated pass — not started. Load `frontend-design` when
+  starting it.
+- **`IsOwner`/`IsAdmin` in `apps/api/internal/companies/repository.go` are broken** — they call
+  `r.DB.Exec` (which doesn't return row data) instead of `QueryRow`/`QueryRow(...).Scan`, and
+  unconditionally return `true, err`. Found, not fixed, during the company-scoping work; matters
+  once HR/admin role checks actually need to gate anything (`AddHr`'s `isOwner`/`isAdmin` check is
+  currently a no-op that always passes).
+- **Mac build** — blocked on porting `windowScanner.ts` (Win32-only `koffi`/`user32.dll` calls) to
+  a macOS equivalent, plus code-signing/notarization and kiosk-lock re-testing (Cmd+Tab/Mission
+  Control are harder to suppress than Windows global shortcuts). Untouched.
+- **Monaco code editor, embedded kiosk browser, built-in chat** — untouched, still open.
 
-## Recommended next task (backend not ready yet)
+## Docs known to be stale
 
-Everything auth/room/chat-shaped is blocked on the Go team publishing real endpoints — no point
-building against guesses beyond the draft contract already sent their way. The highest-value
-backend-independent work, in order:
+- `CLAUDE.md` and `README.md` (last touched 2026-08-01) still describe the pre-monorepo,
+  external-Go-team shape — see the "Ground truth" section above for what's actually true. Worth a
+  dedicated pass to bring `CLAUDE.md` back in sync (it's the file read into every session's
+  context, so its drift is the most costly).
+- `CLAUDE.md`'s "Known rough edges" section documents `candidate-app` failing `tsc --noEmit`
+  (duplicate `onWindowScan` key, `window.ipcRenderer` bridge-typing issue). **Verified during this
+  session that this is no longer true** — `bunx tsc --noEmit` in `packages/candidate-app` now
+  exits 0 clean. Someone fixed it since that note was written; the note itself was never updated.
+- `REST.md` documents routes (`/v1/create`, `/v1/{roomId}/ws`) that don't match
+  `apps/api/internal/router/routes.go`'s real routes (nested under `/v1/room/...`, plus the new
+  `request-join`/`accept-join`/`reject-join`/`end` endpoints from this pass). Don't trust it —
+  read `routes.go` directly.
 
-1. **Finish the app split for real: move the dashboard UI out of `candidate-app` into
-   `interviewer-app`.** Right now `candidate-app` still contains the risk gauge/monitor
-   cards/event log (leftover from the pre-split single app) and `interviewer-app` is just a
-   placeholder — the split isn't actually done yet, just scaffolded. This also means extracting
-   the monitoring *logic* (not just the types already in `packages/shared`) so both apps share one
-   definition of what an event/risk-score update looks like, feeding `interviewer-app`'s dashboard
-   from a stubbed/mocked data source until the real room stream exists.
-2. **Do the UI redesign pass as part of that move, not after it** — rebuilding the dashboard UI
-   inside `interviewer-app` is the natural point to also fix the "too AI-lookish" look (swap emoji
-   icons, drop the corner-bracket decoration, pick a deliberate visual identity) rather than
-   porting the old look over and redoing it twice. Load the `frontend-design` skill when starting
-   this.
-3. Once 1–2 land, apply the same visual pass to what's left in `candidate-app` (the actual
-   kiosk/monitoring surface, once the dashboard bits are gone from it).
-4. In parallel or after: walk through the other pre-existing bugs flagged in `CLAUDE.md` /
-   above (duplicate `onWindowScan` key, `window.ipcRenderer` bridge typing, `main.ts`'s null-`win`
-   accesses) — each one so far has turned into a real runtime crash once exercised, not just
-   noise.
+## Recommended next task
 
-This ordering matches `TODO.md`'s own priority order (Interviewer UI, then better-looking UI, then
-auth) — auth is next after this, once the backend team has something to build against.
+Two independent threads are ready to start, both unblocked:
+
+1. **HR login provisioning** — give `AddHr` real account creation (mirrors `CreateCompany`'s owner
+   provisioning), and fix `IsOwner`/`IsAdmin` while touching that file (they're currently dead
+   no-op checks).
+2. **Visual redesign** — light navy/white, square corners, across `candidate-app`,
+   `interviewer-app`, `admin-web`. Purely additive to the current session's backend work; no
+   unknowns blocking it.
+
+Ask which one to start with — no strong dependency either way.
+
+**Note:** as of this rewrite, this session's room/company-scoping/billing work (company scoping,
+token billing, join_code retirement, `cmd/seedadmin`, the `.env` loader fix) is **uncommitted** —
+`git status` on `dev` shows it as working-tree changes, not yet committed.
 
 ## Decisions log
 
-- **2026-08-01** — Backend will be Go, built by a separate team; declined Supabase.
-- **2026-08-01** — Starting point for implementation work: two-app split scaffolding (over UI redesign or code editor).
-- **2026-08-01** — Draft endpoint list proposed for backend team (auth, orgs, sessions/rooms, events stream, code, chat/files) — see conversation history / CLAUDE.md; not yet finalized against the Go team's actual "rooms" design.
-- **2026-08-01** — One repo, Bun workspaces (not two separate repos) for interviewer app + candidate app + shared package.
-- **2026-08-01** — Claude will draft a concrete API/WS contract now (not wait for backend team's own design) — starting spec for the Go team to build against.
-- **2026-08-01** — Multi-tenant SaaS from day one: multiple client companies as orgs, each with their own interviewers, data isolated between orgs. Matches TODO.md's "find real clients" goal — this is a product being sold to multiple companies, not an internal tool.
-- **2026-08-01** — Auto-update deferred. Manual installers for now; revisit before real client rollout.
-- **2026-08-01** — Phase 0 complete. Proceeding to: draft API/WS contract doc, then scaffold the Bun-workspaces monorepo (packages/shared, packages/interviewer-app, packages/candidate-app).
+- **2026-08-01** — Backend will be Go, built by a separate team; declined Supabase. *(Superseded
+  2026-08-22ish: the Go backend ended up being built in this same repo, at `apps/api`, not by a
+  separate team/repo.)*
+- **2026-08-01** — One repo, Bun workspaces for interviewer app + candidate app + shared package.
+  *(Still true; a third package, `admin-web`, was added later — see 2026-08-24 below.)*
+- **2026-08-01** — Multi-tenant SaaS from day one: multiple client companies as orgs, own
+  interviewers, data isolated between orgs. *(This was the target from day one but was not
+  actually enforced in code until the 2026-08-25 company-scoping fix — `ListRooms` had no
+  filtering before that.)*
+- **2026-08-01** — Auto-update deferred. Manual installers for now; revisit before real client
+  rollout.
+- **2026-08-2x** — Auth redesigned: candidate accounts + company accounts share one JWT `users`
+  system (`company_role` claim distinguishes them); admin login stays a separate cookie-based
+  system on purpose (not merged in), because admin's real UI need turned out to be a browser app,
+  not another Electron surface.
+- **2026-08-24** — Admin extracted from `interviewer-app` into its own package, `packages/admin-web`
+  (plain Vite+React, no Electron) — admin auth is cookie-based, which needs a real browser's
+  cookie jar; doing it from Electron's main process required hand-rolling `Set-Cookie`
+  capture/replay, which was judged not worth it once the UI need became "an admin needs a web
+  page," not "an admin needs a desktop app."
+- **2026-08-24/25** — Room joining redesigned from a join-code concept to ask-to-join/accept, using
+  the room's real UUID directly (the join-code/link-based-join design from 2026-08-01 was
+  explicitly deferred, then superseded by this). Interviewer sees who's asking and can
+  accept/reject before the candidate's session opens.
+- **2026-08-25** — Company data isolation, real UUID join code (DUMM33 retired), and token billing
+  (10 tokens / 15 min, prorated, charged at session end, gated on balance at accept) — all three
+  requested together and implemented in one pass. HR login provisioning explicitly deferred in the
+  same conversation; visual redesign explicitly split into its own follow-up pass.
 
 ## Task checklist (progress tracker)
 
-- [x] Phase 0 questions answered
-- [x] Workspace/repo structure created — Bun workspaces, `packages/{shared,candidate-app,interviewer-app}`
-- [x] `packages/shared` extracted — **types only so far** (monitoring vocabulary, room-stream WS message shapes). The actual detection *logic* still lives inline in `packages/candidate-app/src/App.tsx`'s `useEffect`s — not yet moved out. Do that when the candidate-app UI gets pared down to kiosk-only.
-- [x] Interviewer app shell — `packages/interviewer-app`, own `main.ts`/`preload.ts`/electron-builder config (`UnGhosted Interviewer`, no kiosk lock, no window-scan IPC), placeholder React screen. Typechecks clean, `vite build` verified.
-- [x] Candidate app shell — existing app relocated intact to `packages/candidate-app` (`UnGhosted Candidate` productName/appId). All content byte-identical to pre-move (verified via `git diff --stat`), so no regressions introduced by the move. `vite build` verified.
-- [x] API contract doc drafted — `docs/API_CONTRACT.md`, ready to hand to the Go backend team (still a draft/proposal, not confirmed with them)
-- [ ] Auth UI (interviewer login, candidate room-join) — blocked on backend team publishing real endpoints/response shapes
-- [ ] API contract finalized with backend team (their sign-off / revisions)
-- [ ] UI redesign
+- [x] Phase 0 scaffolding (Bun workspaces, `packages/{shared,candidate-app,interviewer-app}`)
+- [x] Go backend built in-repo at `apps/api` (chi, Postgres, JWT auth, WebSocket signaling hub)
+- [x] Candidate + company auth (JWT, `company_role` claim)
+- [x] Admin auth (separate cookie-based system) + `packages/admin-web` extraction + CORS
+- [x] Room create/list/get, WebSocket signaling hub (`/v1/room/{roomID}/ws`)
+- [x] Room join redesign (ask-to-join/accept/reject/end, real UUID, no more join-code)
+- [x] Company-scoped room listing (data isolation between companies)
+- [x] Token billing (10 tokens/15min prorated, balance gate on accept)
+- [x] `cmd/seedadmin` CLI + `.env`-loader path fix
+- [ ] HR account login provisioning (`AddHr`/`AddAdmin` real accounts) + fix `IsOwner`/`IsAdmin`
+- [ ] Visual redesign (light navy/white, square corners) — all three apps
+- [ ] `CLAUDE.md`/`README.md`/`REST.md` refresh pass (currently stale per "Docs known to be stale"
+      above)
 - [ ] Monaco code editor
 - [ ] Embedded kiosk browser
-- [ ] Builtin chat
+- [ ] Built-in chat
 - [ ] Mac build
 
-### Known issue found during scaffolding (pre-existing, not introduced by the move)
+---
 
-`packages/candidate-app` (the old root app) does **not** currently pass `tsc --noEmit` clean —
-confirmed pre-existing (moved files are byte-identical to the prior committed content, 0
-insertions/deletions per `git diff --stat`). Notable ones:
-- `electron/electron-api.d.ts` declares the `onWindowScan` key twice (duplicate object member).
-- `src/App.tsx` errors on `window.ipcRenderer.onWindowScan/.onWindowScanStatus/.startSessionScan/.enterKioskMode/.exitKioskMode` — TS resolves `window.ipcRenderer` to Electron's built-in `IpcRenderer` type rather than the augmented `Window` interface from `electron-api.d.ts`, so the custom bridge methods don't typecheck even though they work at runtime (vite-plugin-electron-renderer's own type polyfill likely shadows the global augmentation — needs investigation).
-- `electron/main.ts` has several "possibly null" `win` accesses and unused imports.
-- `electron/windowScanner.ts` references `GetWindowTextW` before it's in scope in `getWindowTitleSafe`.
+## Appendix: 2026-08-01 scaffolding history (kept for provenance, superseded by "Ground truth" above)
 
-Matches the "BROKEN"/"ALMOST BROKEN" commit history and CLAUDE.md's documented kiosk brace-mismatch
-rough edge — this repo was already mid-repair before the split. Not fixed as part of scaffolding
-(out of scope for a pure move); flag for a dedicated bugfix pass. `packages/interviewer-app`
-(freshly written) typechecks and builds clean.
+<details>
+<summary>Original Phase 0 → scaffolding notes, written before the Go backend moved in-repo</summary>
 
-### Bug found + fixed while first-running candidate-app post-split (2026-08-01)
+### Phase 0 — Scaffolding decisions (COMPLETE, 2026-08-01)
 
-Running `bun run dev:candidate` threw `Error: Cannot find the native Koffi module; did you bundle
-it correctly?` on launch. Root cause: Vite/Rollup was inlining koffi's own source into
-`dist-electron/main.js` instead of leaving it as an external `require`/`import`. koffi locates its
-prebuilt native `.node` binary via a path relative to **its own package directory** at runtime
-(`import.meta.dirname` inside koffi's code) — once its source is bundled into `dist-electron/`,
-that lookup resolves relative to `dist-electron/` instead of koffi's real install location, so it
-never finds the binary (which is installed correctly — verified directly with plain `node -e
-"require('koffi')"`, which works fine).
+- [x] Monorepo vs. two repos → **one repo, Bun workspaces**
+- [x] Candidate accounts vs. one-time link → *(originally decided: one-time room link/code only,
+  no candidate accounts — superseded 2026-08-2x: candidates now have persistent accounts)*
+- [x] Draft API contract now vs. wait for backend team → drafted early; largely superseded once
+  the backend moved in-repo and was iterated on directly instead of against a frozen draft
+- [x] Multi-tenant vs. single-org → **multi-tenant SaaS from day one**
+- [x] Auto-update now vs. defer → **defer**, manual installers until closer to real client rollout
 
-This is **not caused by the workspace split** — it would have failed identically in the original
-single-app layout the moment `main.ts`'s import of `windowScanner.ts` (and therefore `koffi`) was
-bundled the same way; it's about Rollup's default bundling behavior for the Electron main process,
-unrelated to directory depth. Likely why the repo's commit history has "BROKEN"/"ALMOST BROKEN"
-commits — this may be one of them.
+### Original bug-fix notes from the app-split (2026-08-01)
 
-**Fix:** added `external: ['koffi', 'systeminformation']` to `packages/candidate-app/vite.config.ts`'s
-main-process Rollup config, so both stay as plain runtime imports instead of being bundled.
-Verified: `dist-electron/main.js` now contains `import u from "koffi"` (5KB) instead of koffi's
-full inlined source (16KB), and `bun run dev` no longer crashes on load.
+`packages/candidate-app` had post-split `koffi` bundling and `GetWindowTextW` scope bugs, both
+fixed the same day (see git history around that date for specifics — not reproduced here since
+they're resolved and this section is provenance-only).
 
-### Second bug found + fixed on the next run (2026-08-01)
-
-With the above fixed, the app launched but then crashed ~3s later (when the window-scan timer
-first fired): `ReferenceError: GetWindowTextW is not defined` in `getWindowTitleSafe`. This is
-the exact issue already flagged above under "pre-existing tsc errors" (`electron/windowScanner.ts`
-references `GetWindowTextW` before it's in scope) — `getWindowTitleSafe` was a module-level
-function reading `GetWindowTextW`, but `GetWindowTextW` only exists as a local `const` inside
-`scanWindows()`. `tsc` would have caught this (TS2304), but `dev` mode doesn't run the typecheck
-gate, so it shipped as a silent runtime crash instead.
-
-**Fix:** moved `getWindowTitleSafe` to be a closure defined inside `scanWindows()`, after
-`GetWindowTextW` is bound, instead of a module-level function. `tsc --noEmit` no longer reports
-that error, and the build is clean.
-
-**Takeaway:** `candidate-app` was accumulating real, previously-undetected runtime bugs that only
-surfaced once someone actually ran it — the "pre-existing tsc errors" list above isn't just
-noise, each one is worth walking through and fixing, not only the two that happened to crash
-first. Recommend a dedicated pass through the remaining ones (duplicate `onWindowScan` key,
-`window.ipcRenderer` bridge-method typing, `main.ts`'s null-`win` accesses) before relying on this
-app further, rather than waiting to hit each one at runtime.
-
-**2026-08-01 — user confirmed `bun run dev:candidate` works** after both fixes above. Scaffolding
-work staged on a new `bahir` branch; commit itself paused mid-flight at the user's request (they
-interrupted the commit tool call to redirect to roadmap/next-task planning first — nothing lost,
-just not yet committed). See "Recommended next task" below for what's next.
+</details>

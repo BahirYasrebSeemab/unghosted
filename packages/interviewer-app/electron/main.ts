@@ -37,6 +37,7 @@ handle('api:listRooms', (token: string) => apiClient.listRooms(token))
 handle('api:getRoom', (token: string, roomId: string) => apiClient.getRoom(token, roomId))
 handle('api:acceptJoin', (token: string, roomId: string) => apiClient.acceptJoin(token, roomId))
 handle('api:rejectJoin', (token: string, roomId: string) => apiClient.rejectJoin(token, roomId))
+handle('api:endRoom', (token: string, roomId: string) => apiClient.endRoom(token, roomId))
 
 // The built directory structure
 //

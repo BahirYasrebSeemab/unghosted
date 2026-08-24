@@ -2,9 +2,13 @@ package companies
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrCompanyNotFound = errors.New("company not found")
 
 type CompanyRepository struct {
 	DB *pgxpool.Pool
@@ -14,6 +18,47 @@ func NewRepository(DB *pgxpool.Pool) *CompanyRepository {
 	return &CompanyRepository{
 		DB: DB,
 	}
+}
+
+func (r *CompanyRepository) GetByID(ctx context.Context, id int) (*Company, error) {
+	const query = `SELECT id, name, owner, admins, hrs, balance FROM Companies WHERE id = $1`
+
+	var company Company
+	err := r.DB.QueryRow(ctx, query, id).
+		Scan(&company.Id, &company.Name, &company.Owner, &company.Admins, &company.Hrs, &company.Balance)
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrCompanyNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &company, nil
+}
+
+// GetCompanyByMemberEmail resolves which company an authenticated user belongs to — as owner,
+// admin, or hr — since there's no reverse index from users to companies (Companies.Admins/Hrs
+// are plain email arrays). Used to scope room creation/listing to the caller's own company.
+func (r *CompanyRepository) GetCompanyByMemberEmail(ctx context.Context, email string) (*Company, error) {
+	const query = `
+		SELECT id, name, owner, admins, hrs, balance FROM Companies
+		WHERE owner = $1 OR $1 = ANY(coalesce(admins, '{}')) OR $1 = ANY(coalesce(hrs, '{}'))
+		LIMIT 1
+	`
+
+	var company Company
+	err := r.DB.QueryRow(ctx, query, email).
+		Scan(&company.Id, &company.Name, &company.Owner, &company.Admins, &company.Hrs, &company.Balance)
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrCompanyNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &company, nil
 }
 
 func (r *CompanyRepository) CreateCompany(ctx context.Context, company CompanyWithoutId) error {

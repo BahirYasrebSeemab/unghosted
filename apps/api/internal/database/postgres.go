@@ -15,8 +15,14 @@ import (
 )
 
 func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
+	// .env lives at the repo root, but this is called from apps/api (cmd/server, cmd/seedadmin,
+	// ...) — apps/api's parent is apps/, not the repo root, so it's two levels up from here.
+	// Try the local dir first, then that, before giving up. Non-fatal either way: the vars may
+	// already be set in the process environment (CI, docker, etc.).
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("No config found")
+		if err := godotenv.Load("../../.env"); err != nil {
+			log.Println("no .env file found in this directory or two levels up — using existing environment variables")
+		}
 	}
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
@@ -183,6 +189,16 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 	}
 
 	_, err = pool.Exec(ctx, `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS requested_by TEXT`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS company_id INT REFERENCES Companies(id)`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_rooms_company_id ON rooms(company_id)`)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -280,8 +280,8 @@ function RoomsScreen({
     [token, candidateName, role, userEmail, loadRooms],
   )
 
-  const copyJoinCode = useCallback((room: BackendRoom) => {
-    navigator.clipboard.writeText(room.join_code)
+  const copyRoomId = useCallback((room: BackendRoom) => {
+    navigator.clipboard.writeText(room.id)
     setCopiedId(room.id)
     setTimeout(() => setCopiedId((id) => (id === room.id ? null : id)), 1500)
   }, [])
@@ -318,7 +318,7 @@ function RoomsScreen({
         <p className="text-sm text-muted-foreground font-mono">Loading…</p>
       ) : rooms.length === 0 ? (
         <div className="border border-dashed border-border rounded p-6 text-center">
-          <p className="text-sm text-muted-foreground">No sessions yet. Create one above to get a join code for the candidate.</p>
+          <p className="text-sm text-muted-foreground">No sessions yet. Create one above to get a room ID for the candidate.</p>
         </div>
       ) : (
         <ul className="divide-y divide-border border border-border rounded">
@@ -332,10 +332,10 @@ function RoomsScreen({
                 </span>
               </button>
               <button
-                onClick={() => copyJoinCode(room)}
+                onClick={() => copyRoomId(room)}
                 className="font-mono text-xs text-secondary-foreground border border-border rounded px-2 py-1 hover:text-foreground shrink-0"
               >
-                {copiedId === room.id ? "Copied" : room.join_code}
+                {copiedId === room.id ? "Copied" : `${room.id.slice(0, 8)}…`}
               </button>
             </li>
           ))}
@@ -364,6 +364,8 @@ function LiveRoomScreen({
   const [riskScore, setRiskScore] = useState(0)
   const [liveRoom, setLiveRoom] = useState<BackendRoom>(room)
   const [respondingToJoin, setRespondingToJoin] = useState(false)
+  const [joinActionError, setJoinActionError] = useState<string | null>(null)
+  const [ending, setEnding] = useState(false)
 
   useEffect(() => {
     if (liveRoom.join_status === "accepted") return
@@ -381,8 +383,11 @@ function LiveRoomScreen({
 
   const handleAcceptJoin = useCallback(async () => {
     setRespondingToJoin(true)
+    setJoinActionError(null)
     try {
       setLiveRoom(await window.ipcRenderer.acceptJoin(token, room.id))
+    } catch (err) {
+      setJoinActionError(err instanceof Error ? err.message : "Could not accept the join request")
     } finally {
       setRespondingToJoin(false)
     }
@@ -390,10 +395,22 @@ function LiveRoomScreen({
 
   const handleRejectJoin = useCallback(async () => {
     setRespondingToJoin(true)
+    setJoinActionError(null)
     try {
       setLiveRoom(await window.ipcRenderer.rejectJoin(token, room.id))
+    } catch (err) {
+      setJoinActionError(err instanceof Error ? err.message : "Could not reject the join request")
     } finally {
       setRespondingToJoin(false)
+    }
+  }, [token, room.id])
+
+  const handleEndRoom = useCallback(async () => {
+    setEnding(true)
+    try {
+      setLiveRoom(await window.ipcRenderer.endRoom(token, room.id))
+    } finally {
+      setEnding(false)
     }
   }, [token, room.id])
 
@@ -433,28 +450,44 @@ function LiveRoomScreen({
       />
 
       {liveRoom.join_status === "requested" && (
-        <div className="bg-card border border-[var(--color-warning)] rounded p-3 mb-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-foreground">
-            <span className="font-medium">{liveRoom.requested_by ?? "A candidate"}</span> is asking to join.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleRejectJoin}
-              disabled={respondingToJoin}
-              className="px-3 py-1.5 text-xs font-medium rounded border border-border disabled:opacity-50"
-            >
-              Reject
-            </button>
-            <button
-              type="button"
-              onClick={handleAcceptJoin}
-              disabled={respondingToJoin}
-              className="px-3 py-1.5 text-xs font-medium rounded bg-[var(--color-signal)] text-black disabled:opacity-50"
-            >
-              Accept
-            </button>
+        <div className="bg-card border border-[var(--color-warning)] rounded p-3 mb-4 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              <span className="font-medium">{liveRoom.requested_by ?? "A candidate"}</span> is asking to join.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRejectJoin}
+                disabled={respondingToJoin}
+                className="px-3 py-1.5 text-xs font-medium rounded border border-border disabled:opacity-50"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={handleAcceptJoin}
+                disabled={respondingToJoin}
+                className="px-3 py-1.5 text-xs font-medium rounded bg-[var(--color-signal)] text-black disabled:opacity-50"
+              >
+                Accept
+              </button>
+            </div>
           </div>
+          {joinActionError && <p className="text-xs text-[var(--color-critical)]">{joinActionError}</p>}
+        </div>
+      )}
+
+      {liveRoom.join_status === "accepted" && liveRoom.status !== "ended" && (
+        <div className="flex justify-end mb-4">
+          <button
+            type="button"
+            onClick={handleEndRoom}
+            disabled={ending}
+            className="px-3 py-1.5 text-xs font-medium rounded border border-[var(--color-critical)] text-[var(--color-critical)] disabled:opacity-50"
+          >
+            {ending ? "Ending…" : "End Interview"}
+          </button>
         </div>
       )}
 

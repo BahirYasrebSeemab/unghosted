@@ -15,6 +15,7 @@ declare global {
       getRoom: (token: string, roomId: string) => Promise<BackendRoom>
       acceptJoin: (token: string, roomId: string) => Promise<BackendRoom>
       rejectJoin: (token: string, roomId: string) => Promise<BackendRoom>
+      endRoom: (token: string, roomId: string) => Promise<BackendRoom>
     }
   }
 }

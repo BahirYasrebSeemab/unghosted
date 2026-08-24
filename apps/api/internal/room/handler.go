@@ -7,7 +7,6 @@ import (
 	"go-server/internal/pkg/httputil"
 	"net/http"
 
-	"github.com/fasthttp/websocket"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/google/uuid"
 )
@@ -31,8 +30,14 @@ func (h *RoomHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := h.service.CreateRoom(r.Context(), req)
-	
+	email, ok := r.Context().Value("Email").(string)
+	if !ok || email == "" {
+		httputil.Error(w, errors.New("Unauthorized"))
+		return
+	}
+
+	room, err := h.service.CreateRoom(r.Context(), req, email)
+
 	if err != nil {
 		httputil.Error(w, err)
 		return
@@ -42,7 +47,13 @@ func (h *RoomHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RoomHandler) List(w http.ResponseWriter, r *http.Request) {
-	rooms, err := h.service.ListRooms(r.Context())
+	email, ok := r.Context().Value("Email").(string)
+	if !ok || email == "" {
+		httputil.Error(w, errors.New("Unauthorized"))
+		return
+	}
+
+	rooms, err := h.service.ListRooms(r.Context(), email)
 	if err != nil {
 		httputil.Error(w, err)
 		return
@@ -114,6 +125,18 @@ func (h *RoomHandler) RejectJoin(w http.ResponseWriter, r *http.Request) {
 	httputil.JSON(w, http.StatusOK, room)
 }
 
+func (h *RoomHandler) End(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomID")
+
+	room, err := h.service.EndRoom(r.Context(), roomID)
+	if err != nil {
+		httputil.Error(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, room)
+}
+
 // func (h *RoomHandler) Connect(w http.ResponseWriter, r *http.Request) {
 	// joinCode := chi.URLParam(r, "join_code")
 	//
@@ -149,26 +172,3 @@ func (h *RoomHandler) RejectJoin(w http.ResponseWriter, r *http.Request) {
 // 	room, err := h.service.GetByJoinCode(joinCode)
 // }
 
-func (h *RoomHandler) RoomWebsocket(c *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-	var req CreateRoomRequest
-	join_code := chi.URLParam(r, "join_code")
-
-	if join_code == "" { 
-		httputil.Error(w, ErrRoomNotFound)
-		return 
-	}
-
-	if err := httputil.DecodeJSON(r, &req); err != nil {
-		httputil.Error(w, err)
-		return
-	}
-
-	room, err := h.service.CreateRoom(r.Context(), req)
-	
-	if err != nil {
-		httputil.Error(w, err)
-		return
-	}
-
-	httputil.JSON(w, http.StatusCreated, room)
-}

@@ -70,13 +70,13 @@ func run() error {
 	)
 	authHandler := auth.NewUserHandler(authService)
 
-	roomRepo := room.NewRepository(pool)
-	roomService := room.NewRoomService(roomRepo)
-	roomHandler := room.NewRoomHandler(roomService)
-
 	companyRepo := companies.NewRepository(pool)
 	companyService := companies.NewCompanyService(companyRepo, authRepo)
 	companyHandler := companies.NewCompanyHandler(companyService)
+
+	roomRepo := room.NewRepository(pool)
+	roomService := room.NewRoomService(roomRepo, companyRepo)
+	roomHandler := room.NewRoomHandler(roomService)
 
 	adminRepo := admins.NewRepository(pool)
 	adminService := admins.NewAdminService(

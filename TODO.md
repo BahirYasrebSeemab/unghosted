@@ -1,10 +1,28 @@
 # TODO
 
+See `ROADMAP.md` for the full picture (what's decided, what's done, why) — this file is just the
+flat task list. Last swept 2026-08-25.
+
+## Done (this pass, 2026-08-25 — see ROADMAP.md "What's actually done")
+- [x] Interviewer auth (JWT, `company_role`)
+- [x] Company logic — scoping (rooms now isolated per company), balance model
+- [x] insert jwt in to headers / auth middleware
+- [x] Websocket connection between the two (signaling hub, room join now gated by accept)
+- [x] id to real-uuid way of transformation for rooms (DUMM33 join_code retired)
+
+## Open
+
 ## Interviewer UI
+Dashboard exists (create room, accept/reject join requests, live view) — not yet the "user
+dashboard inside the software to show what interviews and where they had" summary view below.
 
 ## Better looking and feeling UI
+Explicit target now: light navy/white, square (not rounded) buttons — see ROADMAP.md. Not started.
 
-## Interviewer auth
+### HR account login provisioning
+`AddHr`/`AddAdmin` only append a name string today, no real account. See ROADMAP.md "Deferred".
+Also fix `IsOwner`/`IsAdmin` in `companies/repository.go` while touching that file — currently
+broken no-ops (always return true).
 
 ### Add Zod schemas for all API things
 
@@ -20,6 +38,7 @@ Check performance
 ##  Build for mac
 
 ## Write good readme
+CLAUDE.md/README.md/REST.md are stale — see ROADMAP.md "Docs known to be stale" for specifics.
 
 ## Landing Website
 
@@ -31,17 +50,6 @@ Founders school should help with that, but cold emails can go now
 
 # Stuff we don't have for scalability
 - Pagination
-- id to uuid way of transformation for rooms
-
-
-
-# Backend
 - Duplicate room verification
 - Interview as a separate entity that gets attached to room
-- Websocket connection between the two
-
-- insert jwt in to headers
-- auth middleware
 - (?) JWT access tokens Postgres -> Redis
-- Company logic
-- WebSockets (Roleplay: are you taking or giving ?) Rooms

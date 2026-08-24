@@ -75,6 +75,7 @@ type Room struct {
 	Status			RoomState	`json:"status"`
 	JoinStatus		JoinStatus	`json:"join_status"`
 	RequestedBy		*string		`json:"requested_by,omitempty"`
+	CompanyID		*int		`json:"company_id,omitempty"`
 }
 
 type CreateRoomRequest struct {
