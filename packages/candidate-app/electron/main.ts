@@ -28,7 +28,8 @@ function handle<Args extends unknown[], Result>(channel: string, fn: (...args: A
   })
 }
 
-handle('api:joinRoom', (joinCode: string) => apiClient.joinRoom(joinCode))
+handle('api:getRoom', (token: string, roomId: string) => apiClient.getRoom(token, roomId))
+handle('api:requestJoin', (token: string, roomId: string) => apiClient.requestJoin(token, roomId))
 handle('api:login', (email: string, password: string) => apiClient.login(email, password))
 handle('api:sendCode', (name: string, email: string, password: string) => apiClient.sendCode(name, email, password))
 handle('api:register', (email: string, code: number) => apiClient.register(email, code))

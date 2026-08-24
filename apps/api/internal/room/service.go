@@ -94,6 +94,61 @@ func (s *RoomService) GetByID(ctx context.Context, id string) (*Room, error) {
 	return room, nil
 }
 
+func (s *RoomService) RequestJoin(ctx context.Context, id string, requestedBy string) (*Room, error) {
+	roomID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, apierr.Validation("Invalid room id", err)
+	}
+
+	room, err := s.repo.GetByID(ctx, roomID)
+	if errors.Is(err, ErrRoomNotFound) {
+		return nil, apierr.NotFound("Room not found", nil)
+	}
+	if err != nil {
+		return nil, apierr.Internal(err)
+	}
+
+	if room.Status == StateEnded {
+		return nil, apierr.Validation("room has already ended", nil)
+	}
+
+	if room.JoinStatus == JoinAccepted {
+		return room, nil
+	}
+
+	room, err = s.repo.RequestJoin(ctx, roomID, requestedBy)
+	if err != nil {
+		return nil, apierr.Internal(err)
+	}
+
+	return room, nil
+}
+
+func (s *RoomService) AcceptJoin(ctx context.Context, id string) (*Room, error) {
+	return s.setJoinStatus(ctx, id, JoinAccepted)
+}
+
+func (s *RoomService) RejectJoin(ctx context.Context, id string) (*Room, error) {
+	return s.setJoinStatus(ctx, id, JoinRejected)
+}
+
+func (s *RoomService) setJoinStatus(ctx context.Context, id string, status JoinStatus) (*Room, error) {
+	roomID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, apierr.Validation("Invalid room id", err)
+	}
+
+	room, err := s.repo.SetJoinStatus(ctx, roomID, status)
+	if errors.Is(err, ErrRoomNotFound) {
+		return nil, apierr.NotFound("Room not found", nil)
+	}
+	if err != nil {
+		return nil, apierr.Internal(err)
+	}
+
+	return room, nil
+}
+
 func (s *RoomService) GetByJoinCode(ctx context.Context, joinCode string) (*Room, error) {
 	room, err := s.repo.GetByJoinCode(ctx, joinCode)
 

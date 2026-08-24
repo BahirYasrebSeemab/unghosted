@@ -64,3 +64,13 @@ Each app is a **vite-plugin-electron** app with three separate TypeScript worlds
 - Kiosk mode (candidate-app) disables the normal window chrome and unregisters most close/quit shortcuts (`Alt+F4`, `Ctrl+W`, `Ctrl+R`, `F11`, `Escape` are all bound to no-ops); only `Ctrl+Shift+Q` quits. Be deliberate when touching this — it's what keeps the candidate inside the proctored session, and a mistake here can make the dev window unexitable via normal means.
 - A stray root-level file named `wl-copy` (tracked in git) contains what looks like an accidental dump of old `App.tsx` content, unrelated to its Wayland-clipboard-tool name — not touched during the workspace split; flag before assuming it's meaningful.
 - `packages/candidate-app/vite.config.ts` explicitly externals `koffi` and `systeminformation` from the main-process Rollup build (`main.vite.build.rollupOptions.external`). Without this, Rollup inlines koffi's source into `dist-electron/main.js`, which breaks koffi's own runtime lookup of its prebuilt native `.node` binary (that lookup is relative to koffi's real package directory via `import.meta.dirname`, not wherever the bundle ends up) — throws `Cannot find the native Koffi module` on every launch. Keep any other native/binary-loading dependency external too if one gets added here.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

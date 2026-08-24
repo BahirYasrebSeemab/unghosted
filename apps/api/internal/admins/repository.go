@@ -51,6 +51,7 @@ func (r *AdminRepository) AddAdminToken(ctx context.Context, token string, email
 	const query = `
 		INSERT INTO admin_tokens (email , admin_token)
 		VALUES ($1 , $2)
+		ON CONFLICT (email) DO UPDATE SET admin_token = EXCLUDED.admin_token
 	`
 
 	_, err := r.DB.Exec(ctx, query, email, token)

@@ -13,6 +13,8 @@ declare global {
       createRoom: (token: string, input: CreateRoomInput) => Promise<BackendRoom>
       listRooms: (token: string) => Promise<BackendRoom[]>
       getRoom: (token: string, roomId: string) => Promise<BackendRoom>
+      acceptJoin: (token: string, roomId: string) => Promise<BackendRoom>
+      rejectJoin: (token: string, roomId: string) => Promise<BackendRoom>
     }
   }
 }

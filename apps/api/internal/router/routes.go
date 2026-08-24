@@ -64,6 +64,9 @@ func New(deps Dependencies) http.Handler {
 
 				r.Route("/{roomID}", func(r chi.Router) {
 					r.Get("/", deps.RoomHandler.Get)
+					r.Post("/request-join", deps.RoomHandler.RequestJoin)
+					r.Post("/accept-join", deps.RoomHandler.AcceptJoin)
+					r.Post("/reject-join", deps.RoomHandler.RejectJoin)
 					r.Get("/ws", deps.SignalingHandler.HandleConnection)
 					// r.Get("/websocket", deps.ViewerWsHandler.ServeWs)
 					//

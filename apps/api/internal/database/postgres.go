@@ -177,5 +177,15 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 		log.Fatal(err)
 	}
 
+	_, err = pool.Exec(ctx, `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS join_status TEXT NOT NULL DEFAULT 'none'`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `ALTER TABLE rooms ADD COLUMN IF NOT EXISTS requested_by TEXT`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return pool, nil
 }

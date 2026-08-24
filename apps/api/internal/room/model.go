@@ -53,6 +53,15 @@ type Client struct {
 	send chan []byte
 }
 
+type JoinStatus string
+
+const (
+	JoinNone 		JoinStatus = "none"
+	JoinRequested 	JoinStatus = "requested"
+	JoinAccepted 	JoinStatus = "accepted"
+	JoinRejected 	JoinStatus = "rejected"
+)
+
 type Room struct {
 	ID				uuid.UUID `json:"id"`
 	// OrgID	 uuid.UUID `json:"OrgID"`
@@ -64,6 +73,8 @@ type Room struct {
 	CandidateName	string		`json:"candidate_name"`
 	Role			string		`json:"role"`
 	Status			RoomState	`json:"status"`
+	JoinStatus		JoinStatus	`json:"join_status"`
+	RequestedBy		*string		`json:"requested_by,omitempty"`
 }
 
 type CreateRoomRequest struct {

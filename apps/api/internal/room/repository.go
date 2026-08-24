@@ -55,8 +55,8 @@ func (r *RoomRepository) CreateRoom(ctx context.Context, req CreateRoomRequest) 
 
 func (r *RoomRepository) ListRooms(ctx context.Context) ([]Room, error) {
 	const query = `
-		SELECT id, created_by, created_at, candidate_name, 
-			   status, started_at, ended_at, join_code, role
+		SELECT id, created_by, created_at, candidate_name,
+			   status, started_at, ended_at, join_code, role, join_status, requested_by
 		FROM rooms
 		ORDER BY created_at DESC
 	`
@@ -74,6 +74,7 @@ func (r *RoomRepository) ListRooms(ctx context.Context) ([]Room, error) {
 		if err := rows.Scan(
 			&room.ID, &room.CreatedBy, &room.CreatedAt, &room.CandidateName,
 			&room.Status, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+			&room.JoinStatus, &room.RequestedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -91,7 +92,7 @@ func (r *RoomRepository) ListRooms(ctx context.Context) ([]Room, error) {
 func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, error) {
 	const query = `
 		SELECT id, candidate_name, created_at, status, created_by,
-			   started_at, ended_at, join_code, role
+			   started_at, ended_at, join_code, role, join_status, requested_by
 		FROM rooms
 		WHERE id = $1
 	`
@@ -101,7 +102,12 @@ func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, erro
 	err := r.DB.QueryRow(ctx, query, id).
 			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
 				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+				 &room.JoinStatus, &room.RequestedBy,
 			 )
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
 
 	if err != nil {
 		return nil, err
@@ -113,7 +119,7 @@ func (r *RoomRepository) GetByID(ctx context.Context, id uuid.UUID) (*Room, erro
 func (r *RoomRepository) GetByJoinCode(ctx context.Context, joinCode string) (*Room, error) {
 	const query = `
 		SELECT id, candidate_name, created_at, status, created_by,
-			   started_at, ended_at, join_code, role
+			   started_at, ended_at, join_code, role, join_status, requested_by
 		FROM rooms
 		WHERE join_code = $1
 	`
@@ -122,14 +128,69 @@ func (r *RoomRepository) GetByJoinCode(ctx context.Context, joinCode string) (*R
 	err := r.DB.QueryRow(ctx, query, joinCode).
 			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
 				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+				 &room.JoinStatus, &room.RequestedBy,
 			 )
 
 	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrRoomNotFound
 	}
-	
+
 	if err != nil {
 		slog.Error("Error from inside GetByJoinCode")
+		return nil, err
+	}
+
+	return &room, nil
+}
+
+func (r *RoomRepository) RequestJoin(ctx context.Context, id uuid.UUID, requestedBy string) (*Room, error) {
+	const query = `
+		UPDATE rooms
+		SET join_status = 'requested', requested_by = $2
+		WHERE id = $1
+		RETURNING id, candidate_name, created_at, status, created_by,
+				  started_at, ended_at, join_code, role, join_status, requested_by
+	`
+
+	var room Room
+	err := r.DB.QueryRow(ctx, query, id, requestedBy).
+			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
+				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+				 &room.JoinStatus, &room.RequestedBy,
+			 )
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &room, nil
+}
+
+func (r *RoomRepository) SetJoinStatus(ctx context.Context, id uuid.UUID, status JoinStatus) (*Room, error) {
+	const query = `
+		UPDATE rooms
+		SET join_status = $2
+		WHERE id = $1
+		RETURNING id, candidate_name, created_at, status, created_by,
+				  started_at, ended_at, join_code, role, join_status, requested_by
+	`
+
+	var room Room
+	err := r.DB.QueryRow(ctx, query, id, status).
+			Scan(&room.ID, &room.CandidateName, &room.CreatedAt, &room.Status,
+				 &room.CreatedBy, &room.StartedAt, &room.EndedAt, &room.JoinCode, &room.Role,
+				 &room.JoinStatus, &room.RequestedBy,
+			 )
+
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrRoomNotFound
+	}
+
+	if err != nil {
 		return nil, err
 	}
 

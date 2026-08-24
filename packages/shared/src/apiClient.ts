@@ -10,6 +10,8 @@
 
 import axios, { type AxiosInstance } from "axios"
 
+export type RoomJoinStatus = "none" | "requested" | "accepted" | "rejected"
+
 export interface BackendRoom {
   id: string
   created_by: string | null
@@ -20,6 +22,8 @@ export interface BackendRoom {
   candidate_name: string
   role: string
   status: "scheduled" | "active" | "ended"
+  join_status: RoomJoinStatus
+  requested_by?: string | null
 }
 
 export interface CreateRoomInput {
@@ -30,11 +34,6 @@ export interface CreateRoomInput {
 
 export interface LoginResult {
   accessToken: string
-}
-
-export interface JoinRoomResult {
-  roomToken: string
-  room: Pick<BackendRoom, "id" | "candidate_name" | "role">
 }
 
 // Matches apps/api's companies/model.go Company struct's own JSON tags exactly (PascalCase —
@@ -108,10 +107,24 @@ export class ApiClient {
     return res.data
   }
 
-  // Targets POST /v1/room/join, which doesn't exist on the backend yet (see ROADMAP.md's
-  // connectivity phase, backend fix 1) — calling this 404s until that lands.
-  async joinRoom(joinCode: string): Promise<JoinRoomResult> {
-    const res = await this.http.post("/v1/room/join", { join_code: joinCode })
+  async requestJoin(token: string, roomId: string): Promise<BackendRoom> {
+    const res = await this.http.post(`/v1/room/${roomId}/request-join`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return res.data
+  }
+
+  async acceptJoin(token: string, roomId: string): Promise<BackendRoom> {
+    const res = await this.http.post(`/v1/room/${roomId}/accept-join`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return res.data
+  }
+
+  async rejectJoin(token: string, roomId: string): Promise<BackendRoom> {
+    const res = await this.http.post(`/v1/room/${roomId}/reject-join`, null, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
     return res.data
   }
 }

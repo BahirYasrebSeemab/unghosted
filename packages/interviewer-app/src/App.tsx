@@ -362,6 +362,40 @@ function LiveRoomScreen({
 }) {
   const [events, setEvents] = useState<RoomChannelMessage[]>([])
   const [riskScore, setRiskScore] = useState(0)
+  const [liveRoom, setLiveRoom] = useState<BackendRoom>(room)
+  const [respondingToJoin, setRespondingToJoin] = useState(false)
+
+  useEffect(() => {
+    if (liveRoom.join_status === "accepted") return
+
+    const interval = setInterval(async () => {
+      try {
+        setLiveRoom(await window.ipcRenderer.getRoom(token, room.id))
+      } catch {
+        // transient poll failure — try again next tick
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [room.id, token, liveRoom.join_status])
+
+  const handleAcceptJoin = useCallback(async () => {
+    setRespondingToJoin(true)
+    try {
+      setLiveRoom(await window.ipcRenderer.acceptJoin(token, room.id))
+    } finally {
+      setRespondingToJoin(false)
+    }
+  }, [token, room.id])
+
+  const handleRejectJoin = useCallback(async () => {
+    setRespondingToJoin(true)
+    try {
+      setLiveRoom(await window.ipcRenderer.rejectJoin(token, room.id))
+    } finally {
+      setRespondingToJoin(false)
+    }
+  }, [token, room.id])
 
   useEffect(() => {
     const channel = new RoomChannel(WS_BASE_URL, room.id, token)
@@ -397,6 +431,32 @@ function LiveRoomScreen({
           </div>
         }
       />
+
+      {liveRoom.join_status === "requested" && (
+        <div className="bg-card border border-[var(--color-warning)] rounded p-3 mb-4 flex items-center justify-between gap-3">
+          <p className="text-sm text-foreground">
+            <span className="font-medium">{liveRoom.requested_by ?? "A candidate"}</span> is asking to join.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRejectJoin}
+              disabled={respondingToJoin}
+              className="px-3 py-1.5 text-xs font-medium rounded border border-border disabled:opacity-50"
+            >
+              Reject
+            </button>
+            <button
+              type="button"
+              onClick={handleAcceptJoin}
+              disabled={respondingToJoin}
+              className="px-3 py-1.5 text-xs font-medium rounded bg-[var(--color-signal)] text-black disabled:opacity-50"
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Framed like a camera viewfinder — this is literally the point of the screen. */}
       <div className="relative border border-border rounded p-3 mb-4">

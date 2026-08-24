@@ -3,6 +3,7 @@ package admins
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 )
 
@@ -28,6 +29,12 @@ func (h *AdminHandler) CheckAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	admin_token, isAdmin, err := h.service.CheckAdmin(ctx, data)
+
+	if err != nil {
+		slog.Error("admin login failed", "email", data.Email, "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	if !isAdmin {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)

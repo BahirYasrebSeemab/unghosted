@@ -1,6 +1,7 @@
 package room
 
 import (
+	"errors"
 	"fmt"
 	_ "go-server/internal/errors/apierr"
 	"go-server/internal/pkg/httputil"
@@ -63,6 +64,48 @@ func (h *RoomHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	room, err := h.service.GetByID(r.Context(), roomID)
 
+	if err != nil {
+		httputil.Error(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, room)
+}
+
+func (h *RoomHandler) RequestJoin(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomID")
+
+	email, ok := r.Context().Value("Email").(string)
+	if !ok || email == "" {
+		httputil.Error(w, errors.New("Unauthorized"))
+		return
+	}
+
+	room, err := h.service.RequestJoin(r.Context(), roomID, email)
+	if err != nil {
+		httputil.Error(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, room)
+}
+
+func (h *RoomHandler) AcceptJoin(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomID")
+
+	room, err := h.service.AcceptJoin(r.Context(), roomID)
+	if err != nil {
+		httputil.Error(w, err)
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, room)
+}
+
+func (h *RoomHandler) RejectJoin(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomID")
+
+	room, err := h.service.RejectJoin(r.Context(), roomID)
 	if err != nil {
 		httputil.Error(w, err)
 		return

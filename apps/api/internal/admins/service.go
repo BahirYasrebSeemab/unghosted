@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"go-server/internal/pkg/hashing"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -35,7 +37,11 @@ func (s *AdminService) CheckAdmin(ctx context.Context, data LogInData) (string, 
 		return "", false, err
 	}
 
-	if data.Password != password {
+	ok, err := hashing.ValidateHash(data.Password, password)
+	if err != nil {
+		return "", false, err
+	}
+	if !ok {
 		return "", false, nil
 	}
 

@@ -3,7 +3,7 @@ import { ConcentrationMonitor, type ConcentrationReading } from "./concentration
 import { scanWindows } from "../electron/windowScanner";
 import { AuthGate, decodeJwtSub } from "./Auth"
 
-import { VideoRoom } from "@unghosted/shared";
+import { VideoRoom, type BackendRoom } from "@unghosted/shared";
 
 type Severity = "info" | "warning" | "critical"
 
@@ -383,23 +383,68 @@ export default function App() {
   }, [])
 
   const [roomSession, setRoomSession] = useState<{ roomId: string; token: string } | null>(null)
-  const [joinCode, setJoinCode] = useState("")
-  const [joining, setJoining] = useState(false)
-  const [joinError, setJoinError] = useState<string | null>(null)
+  const [roomIdInput, setRoomIdInput] = useState("")
+  const [roomPreview, setRoomPreview] = useState<BackendRoom | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [requesting, setRequesting] = useState(false)
 
-  const handleJoin = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    setJoining(true)
-    setJoinError(null)
+  const handleLookupRoom = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!accessToken) return
+      setPreviewLoading(true)
+      setPreviewError(null)
+      try {
+        const room = await window.ipcRenderer.getRoom(accessToken, roomIdInput.trim())
+        setRoomPreview(room)
+      } catch (err) {
+        setPreviewError(err instanceof Error ? err.message : "Could not find that room")
+      } finally {
+        setPreviewLoading(false)
+      }
+    },
+    [accessToken, roomIdInput],
+  )
+
+  const handleAskToJoin = useCallback(async () => {
+    if (!accessToken || !roomPreview) return
+    setRequesting(true)
+    setPreviewError(null)
     try {
-      const result = await window.ipcRenderer.joinRoom(joinCode.trim())
-      setRoomSession({ roomId: result.room.id, token: result.roomToken })
+      const room = await window.ipcRenderer.requestJoin(accessToken, roomPreview.id)
+      setRoomPreview(room)
     } catch (err) {
-      setJoinError(err instanceof Error ? err.message : "Could not join that room")
+      setPreviewError(err instanceof Error ? err.message : "Could not send join request")
     } finally {
-      setJoining(false)
+      setRequesting(false)
     }
-  }, [joinCode])
+  }, [accessToken, roomPreview])
+
+  // Waits on the interviewer's accept/reject — the room ws is only opened once join_status
+  // flips to "accepted" (see the roomSession effect below).
+  useEffect(() => {
+    if (!accessToken || !roomPreview) return
+    if (roomPreview.join_status !== "requested") return
+
+    const roomId = roomPreview.id
+    const interval = setInterval(async () => {
+      try {
+        const room = await window.ipcRenderer.getRoom(accessToken, roomId)
+        setRoomPreview(room)
+      } catch {
+        // transient poll failure — try again next tick
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [accessToken, roomPreview])
+
+  useEffect(() => {
+    if (accessToken && roomPreview?.join_status === "accepted" && !roomSession) {
+      setRoomSession({ roomId: roomPreview.id, token: accessToken })
+    }
+  }, [accessToken, roomPreview, roomSession])
 
   const [hasScreen, setHasScreen] = useState(false);
   
@@ -752,26 +797,70 @@ export default function App() {
   if (!roomSession) {
     return (
       <div className="min-h-screen bg-[#07090e] text-slate-200 font-sans flex items-center justify-center p-6">
-        <form onSubmit={handleJoin} className="w-full max-w-sm space-y-4">
+        <div className="w-full max-w-sm space-y-4">
           <div className="text-center space-y-1">
             <h1 className="text-lg font-semibold text-slate-100">Join Interview</h1>
-            <p className="text-sm text-slate-500">Enter the join code your interviewer sent you.</p>
+            <p className="text-sm text-slate-500">Paste the room ID from the link your interviewer sent you.</p>
           </div>
-          <input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
-            placeholder="Join code"
-            className="w-full bg-[#0f1117] border border-[#1e2230] rounded px-3 py-2 text-sm font-mono tracking-widest text-center uppercase"
-            autoFocus
-          />
-          {joinError && <p className="text-sm text-red-500 text-center">{joinError}</p>}
-          <button
-            type="submit"
-            disabled={joining || !joinCode.trim()}
-            className="w-full bg-amber-500 text-black font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
-          >
-            {joining ? "Joining…" : "Join"}
-          </button>
+
+          {!roomPreview && (
+            <form onSubmit={handleLookupRoom} className="space-y-4">
+              <input
+                value={roomIdInput}
+                onChange={(e) => setRoomIdInput(e.target.value)}
+                placeholder="Room ID"
+                className="w-full bg-[#0f1117] border border-[#1e2230] rounded px-3 py-2 text-sm font-mono tracking-widest text-center"
+                autoFocus
+              />
+              {previewError && <p className="text-sm text-red-500 text-center">{previewError}</p>}
+              <button
+                type="submit"
+                disabled={previewLoading || !roomIdInput.trim()}
+                className="w-full bg-amber-500 text-black font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
+              >
+                {previewLoading ? "Looking up…" : "Find room"}
+              </button>
+            </form>
+          )}
+
+          {roomPreview && roomPreview.join_status !== "requested" && (
+            <div className="space-y-4">
+              <div className="bg-[#0f1117] border border-[#1e2230] rounded px-3 py-3 text-sm text-center space-y-1">
+                <p className="text-slate-100">{roomPreview.candidate_name}</p>
+                <p className="text-slate-500">{roomPreview.role}</p>
+              </div>
+              {previewError && <p className="text-sm text-red-500 text-center">{previewError}</p>}
+              {roomPreview.join_status === "rejected" && (
+                <p className="text-sm text-amber-500 text-center">Your last request was declined.</p>
+              )}
+              <button
+                type="button"
+                onClick={handleAskToJoin}
+                disabled={requesting}
+                className="w-full bg-amber-500 text-black font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
+              >
+                {requesting ? "Sending…" : "Ask to Join"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoomPreview(null)}
+                className="w-full text-xs text-center text-slate-600 underline underline-offset-2"
+              >
+                Look up a different room
+              </button>
+            </div>
+          )}
+
+          {roomPreview && roomPreview.join_status === "requested" && (
+            <div className="space-y-2 text-center">
+              <div className="bg-[#0f1117] border border-[#1e2230] rounded px-3 py-3 text-sm space-y-1">
+                <p className="text-slate-100">{roomPreview.candidate_name}</p>
+                <p className="text-slate-500">{roomPreview.role}</p>
+              </div>
+              <p className="text-sm text-slate-400">Waiting for the interviewer to let you in…</p>
+            </div>
+          )}
+
           {userEmail && (
             <p className="text-xs text-center text-slate-600">
               Signed in as {userEmail}.{" "}
@@ -780,7 +869,7 @@ export default function App() {
               </button>
             </p>
           )}
-        </form>
+        </div>
       </div>
     )
   }
