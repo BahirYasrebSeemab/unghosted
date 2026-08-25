@@ -23,7 +23,8 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		JWTSecret: os.Getenv("JWT_SECRET"),
-		AllowedOrigin: getEnv("ADMIN_WEB_ORIGIN", "http://localhost:5175"),
+		// AllowedOrigin: getEnv("ADMIN_WEB_ORIGIN", "http://localhost:5175"),
+		AllowedOrigin: os.Getenv("ADMIN_WEB_ORIGIN"),
 	}
 
 	jwtAccessExpMinutes, err := strconv.Atoi(getEnv("JWT_ACCESS_EXPIRATION_MINUTES", "60"))

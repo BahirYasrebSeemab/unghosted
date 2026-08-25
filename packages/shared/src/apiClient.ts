@@ -60,7 +60,12 @@ export class ApiClient {
   private refreshCookie?: string
 
   constructor(baseUrl: string) {
-    this.http = axios.create({ baseURL: baseUrl })
+    this.http = axios.create({ 
+      baseURL: baseUrl ,
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+      }
+    })
   }
 
   async sendCode(name: string, email: string, password: string): Promise<void> {

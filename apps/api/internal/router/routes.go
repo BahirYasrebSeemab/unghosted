@@ -1,6 +1,7 @@
 package router
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -34,11 +35,16 @@ func New(deps Dependencies) http.Handler {
 	// admin-web is the only browser client hitting this API directly (the Electron apps go
 	// through their own main process, which isn't subject to CORS) — scoped to its exact origin
 	// since credentialed requests (the admin_token cookie) can't use a wildcard origin.
+	if (deps.AllowedOrigin == "") {
+		log.Fatal("MOTHA FUCKA WHERE IS YOUR ORIGIN< WHERE ARE YOU COMING FROM??!?!?!")
+	}
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{deps.AllowedOrigin},
+		AllowedOrigins:   []string{deps.AllowedOrigin, "http://*", "http://localhost:5175"},
 		AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "ngrok-skip-browser-warning"},
+		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
+		MaxAge: 300,
 	}))
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
