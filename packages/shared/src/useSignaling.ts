@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
 import { RoomChannel } from "./roomChannel"
 
-export function useSignaling(wsBaseUrl: string, roomId: string, token: string): { channel: RoomChannel | null } {
+export function useSignaling(apiBaseUrl: string, roomId: string, token: string): { channel: RoomChannel | null } {
   const [channel, setChannel] = useState<RoomChannel | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    const room = new RoomChannel(wsBaseUrl, roomId, token)
+    const room = new RoomChannel(apiBaseUrl, roomId, token)
 
     room
       .waitUntilOpen()
@@ -25,7 +25,7 @@ export function useSignaling(wsBaseUrl: string, roomId: string, token: string): 
       cancelled = true
       room.close()
     }
-  }, [wsBaseUrl, roomId, token])
+  }, [apiBaseUrl, roomId, token])
 
   return { channel }
 }

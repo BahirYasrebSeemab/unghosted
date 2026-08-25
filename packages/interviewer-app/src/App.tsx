@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import type { BackendRoom, RoomChannelMessage } from "@unghosted/shared"
 import { RoomChannel, VideoRoom } from "@unghosted/shared"
 
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? "ws://localhost:3000"
+// The WS URL is derived from this same origin (http(s) -> ws(s)) inside RoomChannel/VideoRoom —
+// see packages/shared/src/roomChannel.ts's header comment for why there's no separate WS env var.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000"
 
 function decodeJwtSub(token: string): string | null {
   try {
@@ -415,7 +417,7 @@ function LiveRoomScreen({
   }, [token, room.id])
 
   useEffect(() => {
-    const channel = new RoomChannel(WS_BASE_URL, room.id, token)
+    const channel = new RoomChannel(API_BASE_URL, room.id, token)
     const unsubscribe = channel.onMessage((msg) => {
       if ("type" in msg && msg.type === "event") {
         setEvents((prev) => [...prev.slice(-49), msg])
@@ -497,7 +499,7 @@ function LiveRoomScreen({
         <span className="absolute -top-px -right-px h-3 w-3 border-t border-r border-[var(--color-signal)]" />
         <span className="absolute -bottom-px -left-px h-3 w-3 border-b border-l border-[var(--color-signal)]" />
         <span className="absolute -bottom-px -right-px h-3 w-3 border-b border-r border-[var(--color-signal)]" />
-        <VideoRoom wsBaseUrl={WS_BASE_URL} roomId={room.id} token={token} />
+        <VideoRoom apiBaseUrl={API_BASE_URL} roomId={room.id} token={token} />
       </div>
 
       <div className="bg-card border border-border rounded p-3">
