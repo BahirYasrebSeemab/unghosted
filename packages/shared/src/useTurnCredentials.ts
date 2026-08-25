@@ -21,7 +21,7 @@ export function useTurnCredentials(): RTCIceServer[] | null {
       }
 
       try {
-        const response = await fetch(`https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`)
+        const response = await fetch(`${domain}/api/v1/turn/credentials?apiKey=${apiKey}`)
         if (!response.ok) throw new Error(`TURN credentials request failed: ${response.status}`)
         const servers = (await response.json()) as RTCIceServer[]
         if (!cancelled) setIceServers(servers)
