@@ -27,7 +27,7 @@ export class RoomChannel {
   private listeners = new Set<(msg: RoomChannelMessage) => void>()
 
   constructor(wsBaseUrl: string, roomId: string, token: string) {
-    const url = `${wsBaseUrl}/v1/room/${roomId}/ws?token=${encodeURIComponent(token)}`
+    const url = `${wsBaseUrl}/${roomId}/ws?token=${encodeURIComponent(token)}`
     this.ws = new WebSocket(url)
     this.ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as RoomChannelMessage
