@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // All apps/api calls run from here (main process, not the renderer) since apps/api has no CORS
 // config yet — a plain fetch/axios from the renderer would be blocked. See CLAUDE.md.
-const apiClient = new ApiClient(process.env.API_BASE_URL ?? 'http://localhost:3000')
+const apiClient = new ApiClient(process.env.VITE_API_BASE_URL ?? 'http://localhost:3000')
 
 // Electron re-serializes errors thrown from an ipcMain handler across the IPC boundary, keeping
 // only the top-level message — axios's response.data (the {code, message} body apps/api sends)
