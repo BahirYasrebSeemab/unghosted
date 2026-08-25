@@ -24,15 +24,17 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 			log.Println("no .env file found in this directory or two levels up — using existing environment variables")
 		}
 	}
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_DB"),
-		os.Getenv("POSTGRES_SSLMODE"),
-	)
+	// dsn := fmt.Sprintf(
+	// 	"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+	// 	os.Getenv("POSTGRES_USER"),
+	// 	os.Getenv("POSTGRES_PASSWORD"),
+	// 	os.Getenv("POSTGRES_HOST"),
+	// 	os.Getenv("POSTGRES_PORT"),
+	// 	os.Getenv("POSTGRES_DB"),
+	// 	os.Getenv("POSTGRES_SSLMODE"),
+	// )
+
+	dsn := os.Getenv("DATABASE_URL")
 
 	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
