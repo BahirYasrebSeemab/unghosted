@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { isAxiosError } from 'axios'
@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // All apps/api calls run from here (main process, not the renderer) since apps/api has no CORS
 // config yet — a plain fetch/axios from the renderer would be blocked. See CLAUDE.md.
-const apiClient = new ApiClient(process.env.API_BASE_URL ?? 'http://localhost:3000')
+const apiClient = new ApiClient(process.env.VITE_API_BASE_URL ?? 'http://localhost:3000')
 
 // Electron re-serializes errors thrown from an ipcMain handler across the IPC boundary, keeping
 // only the top-level message — axios's response.data (the {code, message} body apps/api sends)
@@ -95,4 +95,27 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
+// Same camera/mic + screen-share permission plumbing as candidate-app/electron/main.ts, so the
+// interviewer can use the call's "Share screen" control (VideoRoom -> peerManager.startScreenShare
+// -> getDisplayMedia) too, not just the candidate — Electron rejects getUserMedia/getDisplayMedia
+// outright without these handlers explicitly granting them.
+app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'media') {
+      callback(true)
+      return
+    }
+    callback(false)
+  })
+
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === 'media'
+  })
+
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    const sources = await desktopCapturer.getSources({ types: ['screen'] })
+    callback({ video: sources[0], audio: 'loopback' })
+  })
+
+  createWindow()
+})

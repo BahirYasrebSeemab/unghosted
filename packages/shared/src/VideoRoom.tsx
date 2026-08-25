@@ -10,12 +10,12 @@ import { useMediaStream } from "./useMediaStream"
 import { useWebRTC } from "./useWebRTC"
 
 export default function VideoRoom({
-  wsBaseUrl,
+  apiBaseUrl,
   roomId,
   token,
   onLeave,
 }: {
-  wsBaseUrl: string
+  apiBaseUrl: string
   roomId: string
   token: string
   onLeave?: () => void
@@ -47,23 +47,28 @@ export default function VideoRoom({
     )
   }
 
-  return <ConnectedCall wsBaseUrl={wsBaseUrl} roomId={roomId} token={token} localStream={localStream} onLeave={onLeave} />
+  return <ConnectedCall apiBaseUrl={apiBaseUrl} roomId={roomId} token={token} localStream={localStream} onLeave={onLeave} />
 }
 
 function ConnectedCall({
-  wsBaseUrl,
+  apiBaseUrl,
   roomId,
   token,
   localStream,
   onLeave,
 }: {
-  wsBaseUrl: string
+  apiBaseUrl: string
   roomId: string
   token: string
   localStream: MediaStream | null
   onLeave?: () => void
 }) {
-  const { remoteStreams } = useWebRTC(wsBaseUrl, roomId, token, localStream)
+  const { remoteStreams, remoteScreenShares, isScreenSharing, startScreenShare, stopScreenShare } = useWebRTC(
+    apiBaseUrl,
+    roomId,
+    token,
+    localStream,
+  )
   const [isAudioEnabled, setIsAudioEnabled] = useState(true)
   const [isVideoEnabled, setIsVideoEnabled] = useState(true)
 
@@ -79,14 +84,29 @@ function ConnectedCall({
     setIsVideoEnabled(next)
   }
 
+  const toggleScreenShare = () => {
+    if (isScreenSharing) {
+      stopScreenShare()
+    } else {
+      startScreenShare().catch((err) => console.error("Failed to start screen share:", err))
+    }
+  }
+
   return (
     <div>
-      <VideoGrid localStream={localStream} remoteStreams={remoteStreams} isAudioMuted={!isAudioEnabled} />
+      <VideoGrid
+        localStream={localStream}
+        remoteStreams={remoteStreams}
+        remoteScreenShares={remoteScreenShares}
+        isAudioMuted={!isAudioEnabled}
+      />
       <Controls
         isAudioEnabled={isAudioEnabled}
         isVideoEnabled={isVideoEnabled}
         onToggleAudio={toggleAudio}
         onToggleVideo={toggleVideo}
+        isScreenSharing={isScreenSharing}
+        onToggleScreenShare={toggleScreenShare}
         onLeave={onLeave}
       />
     </div>

@@ -3,12 +3,16 @@ export function Controls({
   isVideoEnabled,
   onToggleAudio,
   onToggleVideo,
+  isScreenSharing,
+  onToggleScreenShare,
   onLeave,
 }: {
   isAudioEnabled: boolean
   isVideoEnabled: boolean
   onToggleAudio: () => void
   onToggleVideo: () => void
+  isScreenSharing?: boolean
+  onToggleScreenShare?: () => void
   onLeave?: () => void
 }) {
   const buttonClass =
@@ -22,6 +26,15 @@ export function Controls({
       <button type="button" onClick={onToggleVideo} className={buttonClass}>
         {isVideoEnabled ? "Camera off" : "Camera on"}
       </button>
+      {onToggleScreenShare && (
+        <button
+          type="button"
+          onClick={onToggleScreenShare}
+          className={isScreenSharing ? `${buttonClass} bg-[var(--color-signal)] text-black` : buttonClass}
+        >
+          {isScreenSharing ? "Stop sharing" : "Share screen"}
+        </button>
+      )}
       {onLeave && (
         <button
           type="button"

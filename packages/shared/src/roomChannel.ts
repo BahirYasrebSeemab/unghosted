@@ -8,6 +8,13 @@
 // apps/api/internal/signaling/message.go's enum exactly) and the monitoring event stream drafted
 // in room-stream.ts. apps/api's hub relays any {type, from, to, payload} message verbatim, so
 // both families ride the same relay with no backend changes needed.
+//
+// The WS URL is derived from the same origin as the REST API (VITE_API_BASE_URL, http(s)) rather
+// than a separate VITE_WS_BASE_URL — ported from the feature-share-screen branch's approach. A
+// standalone WS env var can silently drift from the real API host (that's exactly what had broken
+// candidate<->interviewer streaming: candidate-app had no WS var at all and fell back to
+// localhost, interviewer-app's had a stray extra path segment baked in) — deriving it removes that
+// whole class of misconfiguration since there's only one URL to get right per app.
 
 import type { RoomStreamMessage } from "./room-stream"
 
@@ -26,8 +33,10 @@ export class RoomChannel {
   private ws: WebSocket
   private listeners = new Set<(msg: RoomChannelMessage) => void>()
 
-  constructor(wsBaseUrl: string, roomId: string, token: string) {
-    const url = `${wsBaseUrl}/${roomId}/ws?token=${encodeURIComponent(token)}`
+  constructor(apiBaseUrl: string, roomId: string, token: string) {
+    // http(s):// -> ws(s)://, same host/port as the REST API — see the header comment above.
+    const wsBaseUrl = apiBaseUrl.replace(/^http/, "ws")
+    const url = `${wsBaseUrl}/v1/room/${roomId}/ws?token=${encodeURIComponent(token)}`
     this.ws = new WebSocket(url)
     this.ws.onmessage = (event) => {
       const msg = JSON.parse(event.data) as RoomChannelMessage

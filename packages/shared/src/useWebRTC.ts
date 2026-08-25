@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import PeerManager, { type RemoteStream } from "./peerManager"
 import { useSignaling } from "./useSignaling"
 import { useTurnCredentials } from "./useTurnCredentials"
 
-export function useWebRTC(wsBaseUrl: string, roomId: string, token: string, localStream: MediaStream | null) {
-  const { channel } = useSignaling(wsBaseUrl, roomId, token)
+export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, localStream: MediaStream | null) {
+  const { channel } = useSignaling(apiBaseUrl, roomId, token)
   const iceServers = useTurnCredentials()
   const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
+  const [remoteScreenShares, setRemoteScreenShares] = useState<RemoteStream[]>([])
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
   const peerManagerRef = useRef<PeerManager | null>(null)
   const wiredUp = useRef(false)
 
@@ -23,8 +25,18 @@ export function useWebRTC(wsBaseUrl: string, roomId: string, token: string, loca
         return [...prev, { peerId, stream }]
       })
     }
+    peerManager.onRemoteScreenShare = (peerId, stream) => {
+      setRemoteScreenShares((prev) => {
+        if (stream === null) return prev.filter((r) => r.peerId !== peerId)
+        if (prev.find((r) => r.peerId === peerId)) {
+          return prev.map((r) => (r.peerId === peerId ? { peerId, stream } : r))
+        }
+        return [...prev, { peerId, stream }]
+      })
+    }
     peerManager.onPeerLeft = (peerId) => {
       setRemoteStreams((prev) => prev.filter((r) => r.peerId !== peerId))
+      setRemoteScreenShares((prev) => prev.filter((r) => r.peerId !== peerId))
     }
 
     return () => {
@@ -32,5 +44,16 @@ export function useWebRTC(wsBaseUrl: string, roomId: string, token: string, loca
     }
   }, [localStream, channel, iceServers])
 
-  return { remoteStreams }
+  const startScreenShare = useCallback(async () => {
+    if (!peerManagerRef.current) return
+    await peerManagerRef.current.startScreenShare()
+    setIsScreenSharing(true)
+  }, [])
+
+  const stopScreenShare = useCallback(() => {
+    peerManagerRef.current?.stopScreenShare()
+    setIsScreenSharing(false)
+  }, [])
+
+  return { remoteStreams, remoteScreenShares, isScreenSharing, startScreenShare, stopScreenShare }
 }

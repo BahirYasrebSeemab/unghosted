@@ -38,7 +38,9 @@ func main() {
 
 func run() error {
 	if err := godotenv.Load(); err != nil {
-		slog.Warn("no .env file found, using existing environment", "error", err)
+		if err := godotenv.Load("../../.env"); err != nil {
+			slog.Warn("no .env file found in this directory or two levels up, using existing environment", "error", err)
+		}
 	}
 
 	cfg, err := config.Load()
