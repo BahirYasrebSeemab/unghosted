@@ -37,5 +37,6 @@ export function useTurnCredentials(): RTCIceServer[] | null {
     }
   }, [])
 
+  console.log('resolved iceServers:', iceServers)
   return iceServers
 }

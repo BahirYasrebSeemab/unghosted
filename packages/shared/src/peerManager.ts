@@ -33,6 +33,7 @@ export default class PeerManager {
   onPeerLeft?: (peerId: string) => void
   private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map()
   private unsubscribe: () => void
+  private makingOffer: Map<string, boolean> = new Map();
 
   constructor(channel: RoomChannel, localStream: MediaStream, iceServers: RTCIceServer[] = defaultIceServers) {
     this.channel = channel
@@ -112,6 +113,11 @@ export default class PeerManager {
     // would silently never reach the other side.
     client.onnegotiationneeded = async () => {
       try {
+        if (client.signalingState !== 'stable') {
+          return
+        }
+        this.makingOffer.set(peerId, true);
+
         const offer = await client.createOffer()
         await client.setLocalDescription(offer)
         this.channel.send({ type: "offer", from: "", to: peerId, payload: offer })

@@ -13,6 +13,7 @@ export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, loc
   const wiredUp = useRef(false)
 
   useEffect(() => {
+      console.log('wiring check:', { hasLocalStream: !!localStream, hasChannel: !!channel, hasIceServers: !!iceServers, wiredUp: wiredUp.current })
     if (!localStream || !channel || !iceServers || wiredUp.current) return
     wiredUp.current = true
 
