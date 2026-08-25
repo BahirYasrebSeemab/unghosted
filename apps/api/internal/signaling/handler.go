@@ -3,6 +3,8 @@ package signaling
 import (
 	"errors"
 	"go-server/internal/pkg/httputil"
+	"go-server/internal/room"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -26,13 +28,15 @@ var (
 )
 
 type Handler struct {
-	hub *Hub
-	upgrader websocket.Upgrader
+	hub         *Hub
+	roomService *room.RoomService
+	upgrader    websocket.Upgrader
 }
 
-func NewHandler(hub *Hub) *Handler {
+func NewHandler(hub *Hub, roomService *room.RoomService) *Handler {
 	return &Handler {
-		hub: hub,
+		hub:         hub,
+		roomService: roomService,
 		upgrader: websocket.Upgrader{
 			// TODO Kinda CORS, should be Electron's origin
 			CheckOrigin: func(r *http.Request) bool { return true },
@@ -53,8 +57,12 @@ func (h *Handler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.roomService.RecordCallJoin(r.Context(), roomID, email); err != nil {
+		slog.Error("failed to record call join", "error", err, "room_id", roomID, "email", email)
+	}
+
 	conn, err := h.upgrader.Upgrade(w, r, nil)
-	if err != nil { 
+	if err != nil {
 		return
 	}
 

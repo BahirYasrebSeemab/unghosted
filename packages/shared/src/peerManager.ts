@@ -5,18 +5,27 @@
 import type { RoomChannel } from "./roomChannel"
 import type { SignalMessage } from "./roomChannel"
 
+export interface RemoteStream {
+  peerId: string
+  stream: MediaStream
+}
+
+const defaultIceServers: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }]
+
 export default class PeerManager {
   private channel: RoomChannel
   localStream: MediaStream
   peers: Map<string, RTCPeerConnection>
+  private iceServers: RTCIceServer[]
   onRemoteStream?: (peerId: string, stream: MediaStream) => void
   onPeerLeft?: (peerId: string) => void
   private pendingCandidates: Map<string, RTCIceCandidateInit[]> = new Map()
   private unsubscribe: () => void
 
-  constructor(channel: RoomChannel, localStream: MediaStream) {
+  constructor(channel: RoomChannel, localStream: MediaStream, iceServers: RTCIceServer[] = defaultIceServers) {
     this.channel = channel
     this.localStream = localStream
+    this.iceServers = iceServers
     this.peers = new Map()
     this.unsubscribe = channel.onMessage((msg) => this.handleMessage(msg))
   }
@@ -56,7 +65,7 @@ export default class PeerManager {
 
   private createPeerConnection(peerId: string): RTCPeerConnection {
     const client = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: this.iceServers,
     })
     this.localStream.getTracks().forEach((track) => {
       client.addTrack(track, this.localStream)

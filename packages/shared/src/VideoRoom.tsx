@@ -2,69 +2,93 @@
 // apps/api/internal/signaling/hub.go's generic per-room relay, so this component doesn't need to
 // know or care whether it's rendered in candidate-app or interviewer-app.
 
-import { useEffect, useRef, useState } from "react"
-import { RoomChannel } from "./roomChannel"
-import PeerManager from "./peerManager"
+import { useState } from "react"
+import { Controls } from "./Controls"
+import { VideoGrid } from "./VideoGrid"
+import { VideoTile } from "./VideoTile"
+import { useMediaStream } from "./useMediaStream"
+import { useWebRTC } from "./useWebRTC"
 
-interface RemoteStream {
-  peerId: string
-  stream: MediaStream
+export default function VideoRoom({
+  wsBaseUrl,
+  roomId,
+  token,
+  onLeave,
+}: {
+  wsBaseUrl: string
+  roomId: string
+  token: string
+  onLeave?: () => void
+}) {
+  const { localStream, error } = useMediaStream()
+  const [joined, setJoined] = useState(false)
+
+  if (error) {
+    return (
+      <div className="text-sm text-[var(--color-critical,#e5484d)]">
+        Camera/microphone access failed: {error.message}
+      </div>
+    )
+  }
+
+  if (!joined) {
+    return (
+      <div className="space-y-3 max-w-xs">
+        <VideoTile stream={localStream} label="You" isLocal />
+        <button
+          type="button"
+          onClick={() => setJoined(true)}
+          disabled={!localStream}
+          className="w-full px-3 py-1.5 text-xs font-medium rounded border border-border bg-card text-foreground hover:bg-muted disabled:opacity-50"
+        >
+          {localStream ? "Join call" : "Waiting for camera…"}
+        </button>
+      </div>
+    )
+  }
+
+  return <ConnectedCall wsBaseUrl={wsBaseUrl} roomId={roomId} token={token} localStream={localStream} onLeave={onLeave} />
 }
 
-export default function VideoRoom({ wsBaseUrl, roomId, token }: { wsBaseUrl: string; roomId: string; token: string }) {
-  const localVideoRef = useRef<HTMLVideoElement>(null)
-  const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
-  const peerManagerRef = useRef<PeerManager | null>(null)
-  const setupDone = useRef(false)
+function ConnectedCall({
+  wsBaseUrl,
+  roomId,
+  token,
+  localStream,
+  onLeave,
+}: {
+  wsBaseUrl: string
+  roomId: string
+  token: string
+  localStream: MediaStream | null
+  onLeave?: () => void
+}) {
+  const { remoteStreams } = useWebRTC(wsBaseUrl, roomId, token, localStream)
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
 
-  useEffect(() => {
-    if (setupDone.current) return
-    setupDone.current = true
+  const toggleAudio = () => {
+    const next = !isAudioEnabled
+    localStream?.getAudioTracks().forEach((track) => (track.enabled = next))
+    setIsAudioEnabled(next)
+  }
 
-    let localStream: MediaStream
-
-    async function setup() {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStream
-      }
-      const channel = new RoomChannel(wsBaseUrl, roomId, token)
-      const peerManager = new PeerManager(channel, localStream)
-      peerManagerRef.current = peerManager
-      peerManager.onRemoteStream = (peerId, stream) => {
-        setRemoteStreams((prev) => {
-          const exists = prev.find((r) => r.peerId === peerId)
-          if (exists) return prev
-          return [...prev, { peerId, stream }]
-        })
-      }
-      peerManager.onPeerLeft = (peerId) => {
-        setRemoteStreams((prev) => prev.filter((r) => r.peerId !== peerId))
-      }
-    }
-    setup()
-    return () => {
-      localStream?.getTracks().forEach((track) => track.stop())
-      peerManagerRef.current?.close()
-    }
-  }, [wsBaseUrl, roomId, token])
+  const toggleVideo = () => {
+    const next = !isVideoEnabled
+    localStream?.getVideoTracks().forEach((track) => (track.enabled = next))
+    setIsVideoEnabled(next)
+  }
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-      <video ref={localVideoRef} autoPlay muted playsInline style={{ width: 300 }} />
-      {remoteStreams.map(({ peerId, stream }) => (
-        <RemoteVideo key={peerId} stream={stream} />
-      ))}
+    <div>
+      <VideoGrid localStream={localStream} remoteStreams={remoteStreams} isAudioMuted={!isAudioEnabled} />
+      <Controls
+        isAudioEnabled={isAudioEnabled}
+        isVideoEnabled={isVideoEnabled}
+        onToggleAudio={toggleAudio}
+        onToggleVideo={toggleVideo}
+        onLeave={onLeave}
+      />
     </div>
   )
-}
-
-function RemoteVideo({ stream }: { stream: MediaStream }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream
-    }
-  }, [stream])
-  return <video ref={videoRef} autoPlay playsInline style={{ width: 300 }} />
 }

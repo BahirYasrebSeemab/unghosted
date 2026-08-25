@@ -190,6 +190,15 @@ func (r *RoomRepository) MarkActive(ctx context.Context, id uuid.UUID) (*Room, e
 	return &room, nil
 }
 
+func (r *RoomRepository) RecordCallJoin(ctx context.Context, email string, roomID uuid.UUID, role string) error {
+	_, err := r.DB.Exec(ctx, `
+		INSERT INTO in_call_users (email, room_id, role)
+		VALUES ($1, $2, $3)
+	`, email, roomID, role)
+
+	return err
+}
+
 func (r *RoomRepository) MarkEnded(ctx context.Context, id uuid.UUID) (*Room, error) {
 	query := `
 		UPDATE rooms

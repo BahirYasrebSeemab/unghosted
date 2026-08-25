@@ -205,5 +205,24 @@ func NewPostgresPool(ctx context.Context) (*pgxpool.Pool, error) {
 		log.Fatal(err)
 	}
 
+	_, err = pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS in_call_users(
+			id         SERIAL PRIMARY KEY,
+			email      TEXT NOT NULL,
+			room_id    UUID NOT NULL REFERENCES rooms(id),
+			role       TEXT NOT NULL,
+			joined_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+		)
+	`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_in_call_users_room_id ON in_call_users(room_id)`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return pool, nil
 }

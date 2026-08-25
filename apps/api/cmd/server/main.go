@@ -46,7 +46,14 @@ func run() error {
 		return err
 	}
 
-	flag.IntVar(&cfg.Port, "port", 3000, "SERVER API PORT")
+	defaultPort := 3000
+	if p := os.Getenv("PORT"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil {
+			defaultPort = parsed
+		}
+	}
+
+	flag.IntVar(&cfg.Port, "port", defaultPort, "SERVER API PORT")
 	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
 	flag.Parse()
 
@@ -90,7 +97,7 @@ func run() error {
 	hub := signaling.NewHub()
 	go hub.Run()
 
-	signalingHandler := signaling.NewHandler(hub)
+	signalingHandler := signaling.NewHandler(hub, roomService)
 
 	httpHandler := router.New(router.Dependencies{
 		AuthHandler:      authHandler,

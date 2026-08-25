@@ -223,6 +223,30 @@ func (s *RoomService) EndRoom(ctx context.Context, id string) (*Room, error) {
 	return ended, nil
 }
 
+// RecordCallJoin logs a signaling-WS connection into in_call_users, deriving the caller's role
+// from the room itself (whoever created it vs. whoever's join was accepted) rather than trusting
+// a client-supplied value.
+func (s *RoomService) RecordCallJoin(ctx context.Context, id string, email string) error {
+	roomID, err := uuid.Parse(id)
+	if err != nil {
+		return apierr.Validation("Invalid room id", err)
+	}
+
+	room, err := s.repo.GetByID(ctx, roomID)
+	if err != nil {
+		return apierr.Internal(err)
+	}
+
+	role := "unknown"
+	if room.CreatedBy != nil && *room.CreatedBy == email {
+		role = "interviewer"
+	} else if room.RequestedBy != nil && *room.RequestedBy == email {
+		role = "candidate"
+	}
+
+	return s.repo.RecordCallJoin(ctx, email, roomID, role)
+}
+
 func (s *RoomService) GetByJoinCode(ctx context.Context, joinCode string) (*Room, error) {
 	room, err := s.repo.GetByJoinCode(ctx, joinCode)
 
