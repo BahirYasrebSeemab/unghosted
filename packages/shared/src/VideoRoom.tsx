@@ -1,6 +1,10 @@
-// Shared between both apps — an interviewer joining a room is just another peer, per
-// apps/api/internal/signaling/hub.go's generic per-room relay, so this component doesn't need to
-// know or care whether it's rendered in candidate-app or interviewer-app.
+// Shared between both apps — an interviewer joining a room is just another
+// peer in the Metered channel, so this component doesn't need to know or care
+// which app it's rendered in.
+//
+// WebRTC is fully delegated to @metered-ca/realtime via useWebRTC — no Go
+// backend connection happens here.  The Go WS (RoomChannel) is used elsewhere
+// in each app for the monitoring event stream only.
 
 import { useState } from "react"
 import { Controls } from "./Controls"
@@ -10,14 +14,14 @@ import { useMediaStream } from "./useMediaStream"
 import { useWebRTC } from "./useWebRTC"
 
 export default function VideoRoom({
-  apiBaseUrl,
+  meteredApiKey,
   roomId,
-  token,
+  participantName,
   onLeave,
 }: {
-  apiBaseUrl: string
+  meteredApiKey: string
   roomId: string
-  token: string
+  participantName: string
   onLeave?: () => void
 }) {
   const { localStream, error } = useMediaStream()
@@ -47,26 +51,34 @@ export default function VideoRoom({
     )
   }
 
-  return <ConnectedCall apiBaseUrl={apiBaseUrl} roomId={roomId} token={token} localStream={localStream} onLeave={onLeave} />
+  return (
+    <ConnectedCall
+      meteredApiKey={meteredApiKey}
+      roomId={roomId}
+      participantName={participantName}
+      localStream={localStream}
+      onLeave={onLeave}
+    />
+  )
 }
 
 function ConnectedCall({
-  apiBaseUrl,
+  meteredApiKey,
   roomId,
-  token,
+  participantName,
   localStream,
   onLeave,
 }: {
-  apiBaseUrl: string
+  meteredApiKey: string
   roomId: string
-  token: string
+  participantName: string
   localStream: MediaStream | null
   onLeave?: () => void
 }) {
   const { remoteStreams, remoteScreenShares, isScreenSharing, startScreenShare, stopScreenShare } = useWebRTC(
-    apiBaseUrl,
+    meteredApiKey,
     roomId,
-    token,
+    participantName,
     localStream,
   )
   const [isAudioEnabled, setIsAudioEnabled] = useState(true)

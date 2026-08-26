@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { BackendRoom, RoomChannelMessage, AlertEvent, Severity } from "@unghosted/shared"
 import { RoomChannel, VideoRoom, Button, Input, Card, Badge, RiskGauge, EventLog } from "@unghosted/shared"
+
+// WebRTC for the in-room video call is handled by Metered — only the API key
+// is needed here.  All room business logic (create, list, end, monitoring
+// events) stays on the Go backend.
+const METERED_API_KEY = import.meta.env.VITE_METERED_API_KEY ?? ""
 import * as api from "../../shared/src/apiClient";
 
 // The WS URL is derived from this same origin (http(s) -> ws(s)) inside RoomChannel/VideoRoom —
@@ -90,6 +95,7 @@ export default function App() {
       <LiveRoomScreen
         room={selectedRoom}
         token={accessToken}
+        userEmail={userEmail}
         onBack={() => setSelectedRoom(null)}
         onLogout={handleLogout}
       />
@@ -350,11 +356,13 @@ function toAlertEvents(events: RoomChannelMessage[]): AlertEvent[] {
 function LiveRoomScreen({
   room,
   token,
+  userEmail,
   onBack,
   onLogout,
 }: {
   room: BackendRoom
   token: string
+  userEmail: string | null
   onBack: () => void
   onLogout: () => void
 }) {
@@ -482,7 +490,7 @@ function LiveRoomScreen({
         <span className="absolute -top-px -right-px h-3 w-3 border-t border-r border-[var(--color-signal)]" />
         <span className="absolute -bottom-px -left-px h-3 w-3 border-b border-l border-[var(--color-signal)]" />
         <span className="absolute -bottom-px -right-px h-3 w-3 border-b border-r border-[var(--color-signal)]" />
-        <VideoRoom apiBaseUrl={API_BASE_URL} roomId={room.id} token={token} />
+        <VideoRoom meteredApiKey={METERED_API_KEY} roomId={room.id} participantName={userEmail ?? "Interviewer"} />
       </div>
 
       {/* Risk + monitoring dashboard — this is the interviewer's view now, not the candidate's

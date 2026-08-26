@@ -1,69 +1,109 @@
-import { useCallback, useEffect, useRef, useState } from "react"
-import PeerManager, { type RemoteStream } from "./peerManager"
-import { defaultIceServers } from "./peerManager"
-import { useSignaling } from "./useSignaling"
-import { useTurnCredentials } from "./useTurnCredentials"
+// WebRTC via Metered's dedicated infrastructure (@metered-ca/realtime).
+// Metered owns all signaling, TURN credential delivery, ICE restart, and
+// perfect-negotiation — nothing here talks to the Go backend for WebRTC
+// purposes.  The Go WS connection (RoomChannel) is kept separately in each
+// app purely for the monitoring event stream (event / monitor_status /
+// risk_score / room_control messages).
+//
+// Streams are distinguished by the `role` metadata passed to addStream():
+//   "camera" — the participant's webcam+mic (first stream per peer)
+//   "screen" — a later-added screen-share stream
+// The remote side receives the same metadata on stream-added, so we can
+// route each arriving stream to remoteStreams vs remoteScreenShares without
+// any out-of-band signaling.
 
-export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, localStream: MediaStream | null) {
-  const { channel } = useSignaling(apiBaseUrl, roomId, token)
-  const iceServers = useTurnCredentials()
+import { useCallback, useEffect, useRef, useState } from "react"
+import { MeteredPeer } from "@metered-ca/realtime"
+
+export interface RemoteStream {
+  peerId: string
+  stream: MediaStream
+}
+
+export function useWebRTC(
+  meteredApiKey: string,
+  roomId: string,
+  participantName: string,
+  localStream: MediaStream | null,
+) {
   const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
   const [remoteScreenShares, setRemoteScreenShares] = useState<RemoteStream[]>([])
   const [isScreenSharing, setIsScreenSharing] = useState(false)
-  const peerManagerRef = useRef<PeerManager | null>(null)
-  const wiredUp = useRef(false)
+  const peerRef = useRef<MeteredPeer | null>(null)
+  const screenStreamRef = useRef<MediaStream | null>(null)
+  const joined = useRef(false)
 
   useEffect(() => {
-      console.log('wiring check:', { hasLocalStream: !!localStream, hasChannel: !!channel, hasIceServers: !!iceServers, wiredUp: wiredUp.current })
+    if (!localStream || joined.current) return
+    joined.current = true
+    let active = true
 
-    if (!localStream || !channel || wiredUp.current) {
-      console.log('BLOCKED:', { localStream: !!localStream, channel: !!channel, iceServers: !!iceServers, wiredUp: wiredUp.current })
-      return
-    }
-    wiredUp.current = true
-    console.log('CREATING PEER MANAGER NOW')
+    const peer = new MeteredPeer({ apiKey: meteredApiKey })
+    peerRef.current = peer
 
-    const peerManager = new PeerManager(channel, localStream, iceServers ?? defaultIceServers)
-    console.log('PEER MANAGER CREATED:', peerManager);
-    peerManagerRef.current = peerManager
+    // Add camera+mic before joining so negotiation begins with tracks already present.
+    peer.addStream(localStream, { role: "camera", participantName })
 
-    peerManager.onRemoteStream = (peerId, stream) => {
-      setRemoteStreams((prev) => {
-        if (prev.find((r) => r.peerId === peerId)) return prev
-        return [...prev, { peerId, stream }]
-      })
-    }
-    peerManager.onRemoteScreenShare = (peerId, stream) => {
-      setRemoteScreenShares((prev) => {
-        if (stream === null) return prev.filter((r) => r.peerId !== peerId)
-        if (prev.find((r) => r.peerId === peerId)) {
-          return prev.map((r) => (r.peerId === peerId ? { peerId, stream } : r))
+    peer.on("peer-joined", ({ peer: remote }: { peer: any }) => {
+      remote.on("stream-added", ({ stream, metadata }: { stream: MediaStream; metadata?: { role?: string } }) => {
+        if (metadata?.role === "screen") {
+          setRemoteScreenShares((prev) => {
+            if (prev.find((r) => r.peerId === remote.id)) return prev
+            return [...prev, { peerId: remote.id, stream }]
+          })
+        } else {
+          setRemoteStreams((prev) => {
+            if (prev.find((r) => r.peerId === remote.id)) return prev
+            return [...prev, { peerId: remote.id, stream }]
+          })
         }
-        return [...prev, { peerId, stream }]
       })
-    }
-    peerManager.onPeerLeft = (peerId) => {
-      setRemoteStreams((prev) => prev.filter((r) => r.peerId !== peerId))
-      setRemoteScreenShares((prev) => prev.filter((r) => r.peerId !== peerId))
-    }
+
+      remote.on("stream-removed", ({ stream, metadata }: { stream: MediaStream; metadata?: { role?: string } }) => {
+        if (metadata?.role === "screen") {
+          setRemoteScreenShares((prev) => prev.filter((r) => r.stream !== stream))
+        }
+      })
+    })
+
+    peer.on("peer-left", ({ peer: remote }: { peer: any }) => {
+      setRemoteStreams((prev) => prev.filter((r) => r.peerId !== remote.id))
+      setRemoteScreenShares((prev) => prev.filter((r) => r.peerId !== remote.id))
+    })
+
+    peer.join(roomId).catch((err) => {
+      // Suppress errors from intentional closes (StrictMode remounts, navigation).
+      if (active) console.error("MeteredPeer join failed:", err)
+    })
 
     return () => {
-      peerManager.close()
+      active = false
+      void peer.close()
+      joined.current = false
+      peerRef.current = null
     }
-  }, [localStream, channel, iceServers])
-
-  useEffect(() => {
-    if (iceServers) peerManagerRef.current?.updateIceServers(iceServers)
-  }, [iceServers])
+  }, [localStream, meteredApiKey, roomId, participantName])
 
   const startScreenShare = useCallback(async () => {
-    if (!peerManagerRef.current) return
-    await peerManagerRef.current.startScreenShare()
+    if (!peerRef.current) return
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+    screenStreamRef.current = screenStream
+    peerRef.current.addStream(screenStream, { role: "screen" })
     setIsScreenSharing(true)
+
+    screenStream.getVideoTracks()[0].addEventListener("ended", () => {
+      stopScreenShare()
+    }, { once: true })
   }, [])
 
   const stopScreenShare = useCallback(() => {
-    peerManagerRef.current?.stopScreenShare()
+    const stream = screenStreamRef.current
+    if (!stream) return
+    if (peerRef.current) {
+      peerRef.current.removeStream?.(stream)
+    }
+    stream.getTracks().forEach((t) => t.stop())
+    screenStreamRef.current = null
     setIsScreenSharing(false)
   }, [])
 

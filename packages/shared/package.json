@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@metered-ca/realtime": "^1.0.0",
     "axios": "^1.19.0",
     "react": "^18.2.0",
     "@radix-ui/react-slot": "^1.1.0",

@@ -832,9 +832,9 @@ export default function App() {
 
             {roomSession && (
               <VideoRoom
-                apiBaseUrl={import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000"}
+                meteredApiKey={import.meta.env.VITE_METERED_API_KEY ?? ""}
                 roomId={roomSession.roomId}
-                token={roomSession.token}
+                participantName={userEmail ?? "Candidate"}
               />
             )}
             <div>
