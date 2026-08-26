@@ -19,7 +19,7 @@ export interface RemoteStream {
   stream: MediaStream
 }
 
-const defaultIceServers: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }]
+export const defaultIceServers: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }]
 
 export default class PeerManager {
   private channel: RoomChannel
@@ -36,16 +36,22 @@ export default class PeerManager {
   private makingOffer: Map<string, boolean> = new Map();
 
   constructor(channel: RoomChannel, localStream: MediaStream, iceServers: RTCIceServer[] = defaultIceServers) {
+    console.log('PeerManager constructor running')
+
     this.channel = channel
     this.localStream = localStream
     this.iceServers = iceServers
     this.peers = new Map()
-    this.unsubscribe = channel.onMessage((msg) => this.handleMessage(msg))
+    this.unsubscribe = channel.onMessage((msg) => {
+      console.log("PEER MANAGER received message: ", msg)
+      this.handleMessage(msg)})
   }
 
   private handleMessage(msg: unknown): void {
     if (typeof msg !== "object" || msg === null || !("type" in msg)) return
     const signal = msg as SignalMessage
+    console.log("SIGNAL RECEIVED", signal.type, signal)
+
     switch (signal.type) {
       case "offer":
         this.handleOffer(signal)
@@ -128,6 +134,10 @@ export default class PeerManager {
     client.onconnectionstatechange = () => {
       console.log(`[${peerId}] connection state:`, client.connectionState)
     }
+
+    client.onicegatheringstatechange = () => {
+      console.log(`[${peerId} ICE gathering state]:`, client.iceGatheringState)
+    }
     this.peers.set(peerId, client)
     return client
   }
@@ -161,10 +171,11 @@ export default class PeerManager {
   }
 
   private async callPeer(peerId: string): Promise<void> {
-    const client = this.createPeerConnection(peerId)
-    const offer = await client.createOffer()
-    await client.setLocalDescription(offer)
-    this.channel.send({ type: "offer", from: "", to: peerId, payload: offer })
+    // const client = this.createPeerConnection(peerId)
+    // const offer = await client.createOffer()
+    // await client.setLocalDescription(offer)
+    // this.channel.send({ type: "offer", from: "", to: peerId, payload: offer })
+    this.createPeerConnection(peerId)
   }
 
   private async handleOffer(msg: SignalMessage): Promise<void> {

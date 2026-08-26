@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import PeerManager, { type RemoteStream } from "./peerManager"
+import { defaultIceServers } from "./peerManager"
 import { useSignaling } from "./useSignaling"
 import { useTurnCredentials } from "./useTurnCredentials"
 
@@ -14,10 +15,16 @@ export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, loc
 
   useEffect(() => {
       console.log('wiring check:', { hasLocalStream: !!localStream, hasChannel: !!channel, hasIceServers: !!iceServers, wiredUp: wiredUp.current })
-    if (!localStream || !channel || !iceServers || wiredUp.current) return
-    wiredUp.current = true
 
-    const peerManager = new PeerManager(channel, localStream, iceServers)
+    if (!localStream || !channel || wiredUp.current) {
+      console.log('BLOCKED:', { localStream: !!localStream, channel: !!channel, iceServers: !!iceServers, wiredUp: wiredUp.current })
+      return
+    }
+    wiredUp.current = true
+    console.log('CREATING PEER MANAGER NOW')
+
+    const peerManager = new PeerManager(channel, localStream, iceServers ?? defaultIceServers)
+    console.log('PEER MANAGER CREATED:', peerManager);
     peerManagerRef.current = peerManager
 
     peerManager.onRemoteStream = (peerId, stream) => {

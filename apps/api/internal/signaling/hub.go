@@ -2,6 +2,7 @@ package signaling
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 )
 
@@ -33,16 +34,26 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case c := <-h.join:
+			log.Println("register: client", c.ID, "joining room", c.RoomID)
 			h.mu.Lock()
+
+			if h.rooms[c.RoomID] == nil {
+				h.rooms[c.RoomID] = make(map[*Client]bool)
+			}
+
+			if old, exists := h.clientsByID[c.ID]; exists && old != c {
+				delete(h.rooms[c.RoomID], old)
+				close(old.send)
+				old.conn.Close()
+				log.Println("register: evicted stale connection for", c.ID)
+			}
+
 			// If there are no rooms and therefore no client lists inside initialized
 			existing := make([]string, 0, len(h.rooms[c.RoomID]))
 			for peer := range h.rooms[c.RoomID] {
 				existing = append(existing, peer.ID)
 			}
 
-			if h.rooms[c.RoomID] == nil {
-				h.rooms[c.RoomID] = make(map[*Client]bool)
-			}
 			// User joins
 			h.rooms[c.RoomID][c] = true
 			h.clientsByID[c.ID] = c
@@ -53,6 +64,7 @@ func (h *Hub) Run() {
 				Type: MessageTypePeerList,
 				Payload: payload,
 			}
+			log.Println("register: sending peer-list to:", c.ID, "existing peers:", existing)
 
 		case c := <-h.leave:
 			h.mu.Lock()
