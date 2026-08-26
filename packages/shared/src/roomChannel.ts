@@ -32,6 +32,7 @@ export type RoomChannelMessage = SignalMessage | RoomStreamMessage
 export class RoomChannel {
   private ws: WebSocket
   private listeners = new Set<(msg: RoomChannelMessage) => void>()
+  private messageBuffer: RoomChannelMessage[] = []
 
   constructor(apiBaseUrl: string, roomId: string, token: string) {
     // http(s):// -> ws(s)://, same host/port as the REST API — see the header comment above.
@@ -41,12 +42,24 @@ export class RoomChannel {
     this.ws.onmessage = (event) => {
       console.log("RAW WS MESSAGE", event.data);
       const msg = JSON.parse(event.data) as RoomChannelMessage
-      this.listeners.forEach((listener) => listener(msg))
+
+      if (this.listeners.size === 0) {
+        this.messageBuffer.push(msg)
+      } else {
+        this.listeners.forEach((listener) => listener(msg))
+      }
     }
   }
 
   onMessage(listener: (msg: RoomChannelMessage) => void): () => void {
     this.listeners.add(listener)
+
+    if (this.messageBuffer.length > 0) {
+      const buffered = this.messageBuffer
+      this.messageBuffer = []
+      buffered.forEach((msg) => listener(msg))
+    }
+
     return () => this.listeners.delete(listener)
   }
 
