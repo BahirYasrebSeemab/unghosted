@@ -184,11 +184,10 @@ export default class PeerManager {
   }
 
   private async callPeer(peerId: string): Promise<void> {
-    // const client = this.createPeerConnection(peerId)
-    // const offer = await client.createOffer()
-    // await client.setLocalDescription(offer)
-    // this.channel.send({ type: "offer", from: "", to: peerId, payload: offer })
-    this.createPeerConnection(peerId)
+    const client = this.createPeerConnection(peerId)
+    const offer = await client.createOffer()
+    await client.setLocalDescription(offer)
+    this.channel.send({ type: "offer", from: "", to: peerId, payload: offer })
   }
 
   private async handleOffer(msg: SignalMessage): Promise<void> {
