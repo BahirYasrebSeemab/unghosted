@@ -8,9 +8,12 @@ import (
 type Client struct {
 	ID			string
 	RoomID		string
+
 	conn		*websocket.Conn
 	send		chan Message
+
 	hub			*Hub
+	close 		chan struct {}
 }
 
 func NewClient(id, roomId string, conn *websocket.Conn, hub *Hub) *Client {
@@ -20,6 +23,7 @@ func NewClient(id, roomId string, conn *websocket.Conn, hub *Hub) *Client {
 		conn: conn,
 		send: make(chan Message, 16),
 		hub: hub,
+		close: make(chan struct{}),
 	}
 }
 
@@ -74,6 +78,16 @@ func (c *Client) writePump() {
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
+		case <-c.close:
+			_ = c.conn.WriteMessage(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(
+					websocket.CloseNormalClosure,
+					"room closed",
+				),
+			)
+
+			return
 		}
 	}
 

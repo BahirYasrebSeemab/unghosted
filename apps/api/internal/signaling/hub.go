@@ -18,6 +18,8 @@ type Hub struct {
 	join		chan *Client
 	leave		chan *Client
 	broadcast 	chan Message
+
+	closeRoom	chan string
 }
 
 func NewHub() *Hub {
@@ -27,6 +29,7 @@ func NewHub() *Hub {
 		join: make(chan *Client),
 		leave: make(chan *Client),
 		broadcast: make(chan Message),
+		closeRoom: make(chan string),
 	}
 }
 
@@ -92,6 +95,22 @@ func (h *Hub) Run() {
 			h.mu.RUnlock()
 		case msg := <-h.broadcast:
 			h.relay(msg)
+
+		case roomID := <-h.closeRoom:
+			h.mu.Lock()
+			clients := h.rooms[roomID]
+
+			h.handleCloseRoom(roomID)
+			
+			for c := range clients {
+				close(c.send)
+				c.conn.Close()
+				delete(h.clientsByID, c.ID)
+			}
+
+			delete(h.rooms, roomID)
+			h.mu.Unlock()
+			log.Println("Close Room: force-closed room", roomID)
 		}
 	}
 }
@@ -123,4 +142,20 @@ func (h *Hub) deliverToRoom(roomID string, msg Message, sender *Client) {
 		default:
 		}
 	}
+}
+
+func (h *Hub) handleCloseRoom(roomID string) {
+	clients := h.rooms[roomID]
+
+	for client := range clients {
+		close(client.close)
+		
+		delete(h.clientsByID, client.ID)
+	}
+
+	delete(h.rooms, roomID)
+}
+
+func (h *Hub) CloseRoom(roomID string) {
+	h.closeRoom <- roomID
 }

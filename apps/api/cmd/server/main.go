@@ -83,8 +83,11 @@ func run() error {
 	companyService := companies.NewCompanyService(companyRepo, authRepo)
 	companyHandler := companies.NewCompanyHandler(companyService)
 
+	hub := signaling.NewHub()
+	go hub.Run()
+
 	roomRepo := room.NewRepository(pool)
-	roomService := room.NewRoomService(roomRepo, companyRepo)
+	roomService := room.NewRoomService(roomRepo, companyRepo, hub)
 	roomHandler := room.NewRoomHandler(roomService)
 
 	adminRepo := admins.NewRepository(pool)
@@ -95,9 +98,6 @@ func run() error {
 		cfg.JWTRefreshExpiration,
 	)
 	adminHandler := admins.NewAdminHandler(adminService)
-
-	hub := signaling.NewHub()
-	go hub.Run()
 
 	signalingHandler := signaling.NewHandler(hub, roomService)
 

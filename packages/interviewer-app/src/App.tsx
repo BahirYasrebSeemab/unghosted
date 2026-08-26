@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { BackendRoom, RoomChannelMessage, AlertEvent, Severity } from "@unghosted/shared"
 import { RoomChannel, VideoRoom, Button, Input, Card, Badge, RiskGauge, EventLog } from "@unghosted/shared"
+import * as api from "../../shared/src/apiClient";
 
 // The WS URL is derived from this same origin (http(s) -> ws(s)) inside RoomChannel/VideoRoom —
 // see packages/shared/src/roomChannel.ts's header comment for why there's no separate WS env var.

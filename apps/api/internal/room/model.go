@@ -10,7 +10,7 @@ import (
 
 type RoomState string
 
-const (
+var (
 	StateScheduled 	RoomState = "scheduled"
 	StateActive 	RoomState = "active"
 	StateEnded 		RoomState = "ended"

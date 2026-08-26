@@ -51,6 +51,12 @@ func (h *Handler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
 	log.Println("HandleConnection reached, headers:", r.Header, "query:", r.URL.RawQuery)
 
+	rm, err := h.roomService.GetByID(r.Context(), roomID)
+	if err != nil || rm.Status == room.StateEnded {
+		httputil.Error(w, err)
+		return
+	}
+
 	// TODO OR TOTHINK: replace email with real UUID
 	email, ok := r.Context().Value("Email").(string)
 
@@ -77,3 +83,12 @@ func (h *Handler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	go client.writePump()
 	go client.readPump()
 }
+
+
+// func (h *Handler) Close(w http.ResponseWriter, r *http.Request) {
+// 	roomID := chi.URLParam(r, "roomID")
+//
+// 	if err := h.roomService.EndRoom(r.Context(), roomID); err != nil {
+// 		return
+// 	}
+// }

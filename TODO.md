@@ -12,6 +12,10 @@ flat task list. Last swept 2026-08-25.
 
 ## Open
 
+- Fix websockets: video comes only when interviewer reconnects with candidate inside the room
+- Spend tokens: back-end logic + db row
+- Room logic completion: close the room after timeout with no users + update db
+
 ## Interviewer UI
 Dashboard exists (create room, accept/reject join requests, live view) — not yet the "user
 dashboard inside the software to show what interviews and where they had" summary view below.

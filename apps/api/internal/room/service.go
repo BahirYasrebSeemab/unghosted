@@ -18,12 +18,18 @@ const tokensPerFifteenMinutes = 10.0
 type RoomService struct {
 	repo        *RoomRepository
 	companyRepo *companies.CompanyRepository
+	roomCloser 	RoomCloser
 }
 
-func NewRoomService(repo *RoomRepository, companyRepo *companies.CompanyRepository) *RoomService {
+type RoomCloser interface {
+	CloseRoom(roomID string)
+}
+
+func NewRoomService(repo *RoomRepository, companyRepo *companies.CompanyRepository, roomCloser RoomCloser) *RoomService {
 	return &RoomService{
 		repo:        repo,
 		companyRepo: companyRepo,
+		roomCloser:  roomCloser,
 	}
 }
 
