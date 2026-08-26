@@ -133,10 +133,23 @@ export default class PeerManager {
     }
     client.onconnectionstatechange = () => {
       console.log(`[${peerId}] connection state:`, client.connectionState)
+      
+      if (client.connectionState === 'failed') {
+        this.restartIce(peerId, client)
+      }
     }
 
     client.onicegatheringstatechange = () => {
       console.log(`[${peerId} ICE gathering state]:`, client.iceGatheringState)
+      if (client.iceConnectionState === 'disconnected') {
+        // give it a few seconds to self-recover before forcing a restart —
+        // 'disconnected' can be transient (brief network blip)
+        setTimeout(() => {
+          if (client.iceConnectionState === 'disconnected' || client.iceConnectionState === 'failed') {
+            this.restartIce(peerId, client)
+          }
+        }, 3000)
+      }
     }
     this.peers.set(peerId, client)
     return client
@@ -234,4 +247,20 @@ export default class PeerManager {
     this.peers.clear()
     this.cameraStreamIds.clear()
   }
+
+  private async restartIce(peerId: string, client: RTCPeerConnection): Promise<void> {
+    console.log(`[${peerId}] attempting ICE restart`)
+    try {
+      const offer = await client.createOffer({ iceRestart: true })
+      await client.setLocalDescription(offer)
+      this.channel.send({ type: 'offer', from: '', to: peerId, payload: offer })
+    } catch (err) {
+      console.error(`[${peerId}] ICE restart failed`, err)
+    }
+  }
+
+  updateIceServers(iceServers: RTCIceServer[]): void {
+    this.iceServers = iceServers
+  }
 }
+

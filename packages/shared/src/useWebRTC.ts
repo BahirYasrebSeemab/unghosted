@@ -52,6 +52,10 @@ export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, loc
     }
   }, [localStream, channel, iceServers])
 
+  useEffect(() => {
+    if (iceServers) peerManagerRef.current?.updateIceServers(iceServers)
+  }, [iceServers])
+
   const startScreenShare = useCallback(async () => {
     if (!peerManagerRef.current) return
     await peerManagerRef.current.startScreenShare()
