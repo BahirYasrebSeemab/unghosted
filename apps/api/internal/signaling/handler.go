@@ -4,6 +4,7 @@ import (
 	"errors"
 	"go-server/internal/pkg/httputil"
 	"go-server/internal/room"
+	"log"
 	"log/slog"
 	"net/http"
 
@@ -48,6 +49,7 @@ func NewHandler(hub *Hub, roomService *room.RoomService) *Handler {
 
 func (h *Handler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
+	log.Println("HandleConnection reached, headers:", r.Header, "query:", r.URL.RawQuery)
 
 	// TODO OR TOTHINK: replace email with real UUID
 	email, ok := r.Context().Value("Email").(string)
@@ -63,8 +65,11 @@ func (h *Handler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		log.Println("Upgrade failed:", err)
 		return
 	}
+
+	log.Println("Upgrade succeeded")
 
 	client := NewClient(email, roomID, conn, h.hub)
 	h.hub.join <- client
