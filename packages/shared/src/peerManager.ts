@@ -36,11 +36,15 @@ export default class PeerManager {
   private makingOffer: Map<string, boolean> = new Map();
 
   constructor(channel: RoomChannel, localStream: MediaStream, iceServers: RTCIceServer[] = defaultIceServers) {
+    console.log('PeerManager constructor running')
+
     this.channel = channel
     this.localStream = localStream
     this.iceServers = iceServers
     this.peers = new Map()
-    this.unsubscribe = channel.onMessage((msg) => this.handleMessage(msg))
+    this.unsubscribe = channel.onMessage((msg) => {
+      console.log("PEER MANAGER received message: ", msg)
+      this.handleMessage(msg)})
   }
 
   private handleMessage(msg: unknown): void {

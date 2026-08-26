@@ -20,8 +20,10 @@ export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, loc
       return
     }
     wiredUp.current = true
+    console.log('CREATING PEER MANAGER NOW')
 
     const peerManager = new PeerManager(channel, localStream, iceServers)
+    console.log('PEER MANAGER CREATED:', peerManager);
     peerManagerRef.current = peerManager
 
     peerManager.onRemoteStream = (peerId, stream) => {
