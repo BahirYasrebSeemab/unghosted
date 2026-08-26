@@ -14,7 +14,11 @@ export function useWebRTC(apiBaseUrl: string, roomId: string, token: string, loc
 
   useEffect(() => {
       console.log('wiring check:', { hasLocalStream: !!localStream, hasChannel: !!channel, hasIceServers: !!iceServers, wiredUp: wiredUp.current })
-    if (!localStream || !channel || !iceServers || wiredUp.current) return
+
+    if (!localStream || !channel || !iceServers || wiredUp.current) {
+      console.log('BLOCKED:', { localStream: !!localStream, channel: !!channel, iceServers: !!iceServers, wiredUp: wiredUp.current })
+      return
+    }
     wiredUp.current = true
 
     const peerManager = new PeerManager(channel, localStream, iceServers)
