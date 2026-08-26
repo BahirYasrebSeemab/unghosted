@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react"
-import type { BackendRoom, RoomChannelMessage } from "@unghosted/shared"
-import { RoomChannel, VideoRoom } from "@unghosted/shared"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import type { BackendRoom, RoomChannelMessage, AlertEvent, Severity } from "@unghosted/shared"
+import { RoomChannel, VideoRoom, Button, Input, Card, Badge, RiskGauge, EventLog } from "@unghosted/shared"
 
 // The WS URL is derived from this same origin (http(s) -> ws(s)) inside RoomChannel/VideoRoom —
 // see packages/shared/src/roomChannel.ts's header comment for why there's no separate WS env var.
@@ -77,13 +77,9 @@ export default function App() {
         <p className="text-sm text-center text-secondary-foreground">
           This app is for company accounts only.
         </p>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full mt-4 bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm"
-        >
+        <Button onClick={handleLogout} className="w-full mt-4">
           Sign out
-        </button>
+        </Button>
       </AuthShell>
     )
   }
@@ -161,29 +157,23 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
   return (
     <AuthShell>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input
+        <Input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           autoFocus
         />
-        <input
+        <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
         {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading || !email || !password}
-          className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40 transition-opacity"
-        >
+        <Button type="submit" disabled={loading || !email || !password} className="w-full">
           {loading ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
     </AuthShell>
   )
@@ -215,12 +205,9 @@ function Header({
       </div>
       <div className="flex items-center gap-4">
         {right}
-        <button
-          onClick={onLogout}
-          className="text-xs font-mono text-secondary-foreground border border-border rounded px-2.5 py-1.5 hover:text-foreground hover:border-foreground/30"
-        >
+        <Button variant="outline" size="sm" onClick={onLogout}>
           Sign out
-        </button>
+        </Button>
       </div>
     </header>
   )
@@ -293,25 +280,16 @@ function RoomsScreen({
       <Header eyebrow={`${userEmail ?? "Signed in"} · ${companyRole}`} title="Sessions" onLogout={onLogout} />
 
       <form onSubmit={handleCreate} className="flex gap-2 mb-6">
-        <input
+        <Input
           value={candidateName}
           onChange={(e) => setCandidateName(e.target.value)}
           placeholder="Candidate name"
-          className="flex-1 bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+          className="flex-1"
         />
-        <input
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          placeholder="Role"
-          className="flex-1 bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-        />
-        <button
-          type="submit"
-          disabled={creating || !candidateName.trim() || !role.trim()}
-          className="bg-primary text-primary-foreground font-medium rounded px-4 py-2 text-sm disabled:opacity-40 whitespace-nowrap"
-        >
+        <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role" className="flex-1" />
+        <Button type="submit" disabled={creating || !candidateName.trim() || !role.trim()} className="whitespace-nowrap">
           {creating ? "Creating…" : "New session"}
-        </button>
+        </Button>
       </form>
 
       {error && <p className="text-sm text-[var(--color-critical)] mb-4">{error}</p>}
@@ -319,11 +297,11 @@ function RoomsScreen({
       {loading ? (
         <p className="text-sm text-muted-foreground font-mono">Loading…</p>
       ) : rooms.length === 0 ? (
-        <div className="border border-dashed border-border rounded p-6 text-center">
+        <Card className="border-dashed p-6 text-center">
           <p className="text-sm text-muted-foreground">No sessions yet. Create one above to get a room ID for the candidate.</p>
-        </div>
+        </Card>
       ) : (
-        <ul className="divide-y divide-border border border-border rounded">
+        <ul className="divide-y divide-border border border-border">
           {rooms.map((room) => (
             <li key={room.id} className="flex items-center justify-between px-3 py-3 text-sm hover:bg-card/60">
               <button className="text-left flex-1 flex items-center gap-3" onClick={() => onSelectRoom(room)}>
@@ -333,12 +311,9 @@ function RoomsScreen({
                   <span className="text-muted-foreground"> — {room.role}</span>
                 </span>
               </button>
-              <button
-                onClick={() => copyRoomId(room)}
-                className="font-mono text-xs text-secondary-foreground border border-border rounded px-2 py-1 hover:text-foreground shrink-0"
-              >
+              <Button variant="outline" size="sm" onClick={() => copyRoomId(room)} className="shrink-0 font-mono">
                 {copiedId === room.id ? "Copied" : `${room.id.slice(0, 8)}…`}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -349,6 +324,26 @@ function RoomsScreen({
 
 function riskTone(score: number): "signal" | "warning" | "critical" {
   return score >= 60 ? "critical" : score >= 25 ? "warning" : "signal"
+}
+
+// Best-effort display mapping from the generic room-stream messages already being received
+// (see the RoomChannel subscription below) into the shared AlertEvent shape the moved EventLog
+// component expects. Purely a render-time transform of existing state — no new subscriptions,
+// no new fetching. The candidate side doesn't actually emit "event" messages onto the wire yet
+// (see ROADMAP.md), so this list is expected to stay empty until that's wired up separately.
+function toAlertEvents(events: RoomChannelMessage[]): AlertEvent[] {
+  return events.map((msg, i) => {
+    const payload = "payload" in msg && msg.payload && typeof msg.payload === "object" ? (msg.payload as Record<string, unknown>) : {}
+    return {
+      id: String(i),
+      timestamp: typeof payload.timestamp === "string" ? payload.timestamp : new Date().toISOString(),
+      category: typeof payload.category === "string" ? payload.category : "event",
+      message: typeof payload.message === "string" ? payload.message : JSON.stringify(payload),
+      severity: (["info", "warning", "critical"] as Severity[]).includes(payload.severity as Severity)
+        ? (payload.severity as Severity)
+        : "info",
+    }
+  })
 }
 
 function LiveRoomScreen({
@@ -432,6 +427,8 @@ function LiveRoomScreen({
     }
   }, [room.id, token])
 
+  const alertEvents = useMemo(() => toAlertEvents(events), [events])
+
   const tone = riskTone(riskScore)
   const toneColor =
     tone === "signal" ? "text-[var(--color-signal)]" : tone === "warning" ? "text-[var(--color-warning)]" : "text-[var(--color-critical)]"
@@ -452,49 +449,34 @@ function LiveRoomScreen({
       />
 
       {liveRoom.join_status === "requested" && (
-        <div className="bg-card border border-[var(--color-warning)] rounded p-3 mb-4 space-y-2">
+        <Card className="border-[var(--color-warning)] p-3 mb-4 space-y-2">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-foreground">
               <span className="font-medium">{liveRoom.requested_by ?? "A candidate"}</span> is asking to join.
             </p>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleRejectJoin}
-                disabled={respondingToJoin}
-                className="px-3 py-1.5 text-xs font-medium rounded border border-border disabled:opacity-50"
-              >
+              <Button variant="outline" size="sm" onClick={handleRejectJoin} disabled={respondingToJoin}>
                 Reject
-              </button>
-              <button
-                type="button"
-                onClick={handleAcceptJoin}
-                disabled={respondingToJoin}
-                className="px-3 py-1.5 text-xs font-medium rounded bg-[var(--color-signal)] text-black disabled:opacity-50"
-              >
+              </Button>
+              <Button size="sm" onClick={handleAcceptJoin} disabled={respondingToJoin}>
                 Accept
-              </button>
+              </Button>
             </div>
           </div>
           {joinActionError && <p className="text-xs text-[var(--color-critical)]">{joinActionError}</p>}
-        </div>
+        </Card>
       )}
 
       {liveRoom.join_status === "accepted" && liveRoom.status !== "ended" && (
         <div className="flex justify-end mb-4">
-          <button
-            type="button"
-            onClick={handleEndRoom}
-            disabled={ending}
-            className="px-3 py-1.5 text-xs font-medium rounded border border-[var(--color-critical)] text-[var(--color-critical)] disabled:opacity-50"
-          >
+          <Button variant="destructive" size="sm" onClick={handleEndRoom} disabled={ending}>
             {ending ? "Ending…" : "End Interview"}
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Framed like a camera viewfinder — this is literally the point of the screen. */}
-      <div className="relative border border-border rounded p-3 mb-4">
+      <div className="relative border border-border p-3 mb-4">
         <span className="absolute -top-px -left-px h-3 w-3 border-t border-l border-[var(--color-signal)]" />
         <span className="absolute -top-px -right-px h-3 w-3 border-t border-r border-[var(--color-signal)]" />
         <span className="absolute -bottom-px -left-px h-3 w-3 border-b border-l border-[var(--color-signal)]" />
@@ -502,19 +484,21 @@ function LiveRoomScreen({
         <VideoRoom apiBaseUrl={API_BASE_URL} roomId={room.id} token={token} />
       </div>
 
-      <div className="bg-card border border-border rounded p-3">
-        <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-secondary-foreground mb-2">Event log</h2>
-        {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing flagged yet.</p>
-        ) : (
-          <ul className="space-y-1 font-mono text-xs max-h-64 overflow-y-auto">
-            {events.map((msg, i) => (
-              <li key={i} className="text-secondary-foreground">
-                {JSON.stringify("payload" in msg ? msg.payload : msg)}
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* Risk + monitoring dashboard — this is the interviewer's view now, not the candidate's
+          (see candidate-app/src/App.tsx). Driven by the same events/riskScore state as before;
+          only the rendering changed. */}
+      <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 items-start mb-4">
+        <Card className="p-5 flex flex-col items-center gap-3">
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest self-start">Risk Score</span>
+          <RiskGauge score={riskScore} />
+        </Card>
+        <Card className="p-4 h-full">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-secondary-foreground">Event log</h2>
+            <Badge variant="secondary">{alertEvents.length} events</Badge>
+          </div>
+          <EventLog events={alertEvents} />
+        </Card>
       </div>
     </div>
   )

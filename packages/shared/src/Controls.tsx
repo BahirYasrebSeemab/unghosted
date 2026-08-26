@@ -1,3 +1,5 @@
+import { Button } from "./components/ui/button"
+
 export function Controls({
   isAudioEnabled,
   isVideoEnabled,
@@ -15,34 +17,28 @@ export function Controls({
   onToggleScreenShare?: () => void
   onLeave?: () => void
 }) {
-  const buttonClass =
-    "px-3 py-1.5 text-xs font-medium rounded border border-border bg-card text-foreground hover:bg-muted"
-
   return (
     <div className="flex items-center gap-2 mt-3">
-      <button type="button" onClick={onToggleAudio} className={buttonClass}>
+      <Button type="button" variant="outline" size="sm" onClick={onToggleAudio}>
         {isAudioEnabled ? "Mute" : "Unmute"}
-      </button>
-      <button type="button" onClick={onToggleVideo} className={buttonClass}>
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={onToggleVideo}>
         {isVideoEnabled ? "Camera off" : "Camera on"}
-      </button>
+      </Button>
       {onToggleScreenShare && (
-        <button
+        <Button
           type="button"
+          size="sm"
+          variant={isScreenSharing ? "default" : "outline"}
           onClick={onToggleScreenShare}
-          className={isScreenSharing ? `${buttonClass} bg-[var(--color-signal)] text-black` : buttonClass}
         >
           {isScreenSharing ? "Stop sharing" : "Share screen"}
-        </button>
+        </Button>
       )}
       {onLeave && (
-        <button
-          type="button"
-          onClick={onLeave}
-          className="px-3 py-1.5 text-xs font-medium rounded border border-border bg-[var(--color-critical,#e5484d)] text-white hover:opacity-90"
-        >
+        <Button type="button" variant="destructive" size="sm" onClick={onLeave}>
           Leave
-        </button>
+        </Button>
       )}
     </div>
   )

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import type { BackendCompany } from "@unghosted/shared"
+import { Button, Input, Card } from "@unghosted/shared"
 import * as api from "./apiClient"
 
 export default function App() {
@@ -63,29 +64,23 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   return (
     <AuthShell>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input
+        <Input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           autoFocus
         />
-        <input
+        <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
         {error && <p className="text-sm text-[var(--color-critical)]">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading || !email || !password}
-          className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40 transition-opacity"
-        >
+        <Button type="submit" disabled={loading || !email || !password} className="w-full">
           {loading ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
     </AuthShell>
   )
@@ -98,12 +93,9 @@ function Header({ onLogout }: { onLogout: () => void }) {
         <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-secondary-foreground mb-1">Admin</p>
         <h1 className="text-xl font-semibold font-display">Companies</h1>
       </div>
-      <button
-        onClick={onLogout}
-        className="text-xs font-mono text-secondary-foreground border border-border rounded px-2.5 py-1.5 hover:text-foreground hover:border-foreground/30"
-      >
+      <Button variant="outline" size="sm" onClick={onLogout}>
         Sign out
-      </button>
+      </Button>
     </header>
   )
 }
@@ -161,39 +153,33 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <Header onLogout={onLogout} />
 
       <form onSubmit={handleCreate} className="grid grid-cols-2 gap-2 mb-6">
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Company name"
-          className="col-span-2 bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+          className="col-span-2"
         />
-        <input
-          value={ownerName}
-          onChange={(e) => setOwnerName(e.target.value)}
-          placeholder="Owner name"
-          className="bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-        />
-        <input
+        <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Owner name" />
+        <Input
           type="email"
           value={ownerEmail}
           onChange={(e) => setOwnerEmail(e.target.value)}
           placeholder="Owner email"
-          className="bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
-        <input
+        <Input
           type="password"
           value={ownerPassword}
           onChange={(e) => setOwnerPassword(e.target.value)}
           placeholder="Owner password"
-          className="col-span-2 bg-card border border-border rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+          className="col-span-2"
         />
-        <button
+        <Button
           type="submit"
           disabled={creating || !name.trim() || !ownerName.trim() || !ownerEmail.trim() || !ownerPassword.trim()}
-          className="col-span-2 bg-primary text-primary-foreground font-medium rounded px-4 py-2 text-sm disabled:opacity-40"
+          className="col-span-2"
         >
           {creating ? "Creating…" : "New company"}
-        </button>
+        </Button>
       </form>
 
       {error && <p className="text-sm text-[var(--color-critical)] mb-4">{error}</p>}
@@ -241,7 +227,7 @@ function CompanyRow({ company, onChanged }: { company: BackendCompany; onChanged
   )
 
   return (
-    <div className="bg-card border border-border rounded px-3 py-2.5 text-sm">
+    <Card className="px-3 py-2.5 text-sm">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-medium">{company.Name}</p>
@@ -249,32 +235,22 @@ function CompanyRow({ company, onChanged }: { company: BackendCompany; onChanged
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-secondary-foreground">Balance: {company.Balance}</span>
-          <input
+          <Input
             type="number"
             min={1}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="w-20 bg-background border border-border rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
+            className="w-20 h-8 text-xs"
           />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => adjust("increase")}
-            className="text-xs font-mono border border-border rounded px-2 py-1 hover:text-foreground hover:border-foreground/30 disabled:opacity-40"
-          >
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => adjust("increase")}>
             Add
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => adjust("reduce")}
-            className="text-xs font-mono border border-border rounded px-2 py-1 hover:text-foreground hover:border-foreground/30 disabled:opacity-40"
-          >
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => adjust("reduce")}>
             Reduce
-          </button>
+          </Button>
         </div>
       </div>
       {error && <p className="text-xs text-[var(--color-critical)] mt-1">{error}</p>}
-    </div>
+    </Card>
   )
 }

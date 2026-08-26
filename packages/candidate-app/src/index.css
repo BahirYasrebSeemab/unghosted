@@ -1,25 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap');
 @import 'tailwindcss';
 
+/* Light navy/white "serious dashboard" theme (shared visual language with interviewer-app and
+   admin-web — see those files' index.css). Sharp corners throughout: overriding Tailwind's own
+   radius scale tokens to 0 here means every existing `rounded`/`rounded-md`/`rounded-lg` className
+   already in the app resolves to square automatically, no need to hunt down each one.
+   `rounded-full` is a separate token and is untouched, so status dots stay circular. */
 @theme inline {
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'DM Mono', monospace;
 
-  --color-background: #07090e;
-  --color-foreground: #e2e8f0;
-  --color-card: #0f1117;
-  --color-card-foreground: #cbd5e1;
-  --color-primary: #f59e0b;
-  --color-primary-foreground: #07090e;
-  --color-secondary: #1c2030;
-  --color-secondary-foreground: #94a3b8;
-  --color-muted: #141720;
+  --color-background: #f6f7f9;
+  --color-foreground: #101828;
+  --color-card: #ffffff;
+  --color-card-foreground: #101828;
+  --color-primary: #14274e;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #eef1f6;
+  --color-secondary-foreground: #33415c;
+  --color-muted: #f0f2f6;
   --color-muted-foreground: #64748b;
-  --color-accent: #ef4444;
-  --color-accent-foreground: #fff;
-  --color-border: #1e2230;
-  --color-ring: #f59e0b;
-  --radius: 6px;
+  --color-accent: #14274e;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #dde2ea;
+  --color-input: #dde2ea;
+  --color-ring: #14274e;
+
+  --color-signal: #0f9d70;
+  --color-signal-dim: rgba(15, 157, 112, 0.12);
+  --color-warning: #b45309;
+  --color-warning-dim: rgba(180, 83, 9, 0.12);
+  --color-critical: #dc2626;
+  --color-critical-dim: rgba(220, 38, 38, 0.12);
+
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 }
 
 * {
@@ -27,8 +47,8 @@
 }
 
 body {
-  background-color: #07090e;
-  color: #e2e8f0;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   font-family: 'DM Sans', system-ui, sans-serif;
 }
 
@@ -40,10 +60,8 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2230;
-  border-radius: 2px;
+  background: var(--color-border);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2e3448;
+  background: var(--color-muted-foreground);
 }
-

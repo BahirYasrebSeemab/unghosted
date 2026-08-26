@@ -1,36 +1,48 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
-/* A live-interview console, not a generic dashboard — tokens borrow from broadcast/control-room
-   language (tally lights, signal color) since that's what this screen actually does: show a live
-   feed and a status board. The signal color is reserved for state (live/active/risk), never used
-   decoratively, so it doesn't read as "one bright accent on near-black." */
+/* Light navy/white "serious dashboard" theme — a live-interview console still borrows
+   broadcast/control-room language (tally lights, signal color) for state, but on a light canvas
+   instead of near-black: white cards on a soft-gray background, deep navy for primary actions and
+   text, hairline borders. Sharp corners throughout: overriding Tailwind's own radius scale tokens
+   to 0 means every existing `rounded`/`rounded-md`/`rounded-lg` className already in the app
+   resolves to square automatically. `rounded-full` is a separate token and stays circular, so
+   status dots are unaffected. */
 @theme inline {
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
-  --color-background: #0b0d10;
-  --color-foreground: #e8e6e1;
-  --color-card: #131619;
-  --color-card-foreground: #c7c4bd;
-  --color-primary: #e8e6e1;
-  --color-primary-foreground: #0b0d10;
-  --color-secondary: #1a1e22;
-  --color-secondary-foreground: #8a8d92;
-  --color-muted: #15181b;
-  --color-muted-foreground: #6b6e73;
-  --color-border: #232830;
-  --color-ring: #2dd4a7;
+  --color-background: #f6f7f9;
+  --color-foreground: #101828;
+  --color-card: #ffffff;
+  --color-card-foreground: #101828;
+  --color-primary: #14274e;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #eef1f6;
+  --color-secondary-foreground: #33415c;
+  --color-muted: #f0f2f6;
+  --color-muted-foreground: #64748b;
+  --color-accent: #14274e;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #dde2ea;
+  --color-input: #dde2ea;
+  --color-ring: #14274e;
 
   /* Tally-light states — the one recurring signature element (room status, live risk indicator) */
-  --color-signal: #2dd4a7;
-  --color-signal-dim: rgba(45, 212, 167, 0.14);
-  --color-warning: #e8a33d;
-  --color-warning-dim: rgba(232, 163, 61, 0.14);
-  --color-critical: #e5484d;
-  --color-critical-dim: rgba(229, 72, 77, 0.14);
+  --color-signal: #0f9d70;
+  --color-signal-dim: rgba(15, 157, 112, 0.12);
+  --color-warning: #b45309;
+  --color-warning-dim: rgba(180, 83, 9, 0.12);
+  --color-critical: #dc2626;
+  --color-critical-dim: rgba(220, 38, 38, 0.12);
 
-  --radius: 4px;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 }
 
 * {
@@ -38,8 +50,8 @@
 }
 
 body {
-  background-color: #0b0d10;
-  color: #e8e6e1;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   font-family: 'Space Grotesk', system-ui, sans-serif;
 }
 

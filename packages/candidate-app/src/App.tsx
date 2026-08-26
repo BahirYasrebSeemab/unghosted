@@ -3,7 +3,7 @@ import { ConcentrationMonitor, type ConcentrationReading } from "./concentration
 import { scanWindows } from "../electron/windowScanner";
 import { AuthGate, decodeJwtSub } from "./Auth"
 
-import { VideoRoom, type BackendRoom } from "@unghosted/shared";
+import { VideoRoom, type BackendRoom, Button, Input, Card, Badge, Separator } from "@unghosted/shared";
 
 type Severity = "info" | "warning" | "critical"
 
@@ -35,117 +35,10 @@ const SESSION_ID = "INT-" + Math.floor(2800 + Math.random() * 200)
 const CANDIDATE = "Alex Morgan"
 const ROLE = "Senior Software Engineer"
 
-function formatTime(d: Date) {
-  return d.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
-}
-
-function RiskGauge({ score }: { score: number }) {
-  const color = score < 25 ? "#22c55e" : score < 60 ? "#f59e0b" : "#ef4444"
-  const label = score < 25 ? "LOW RISK" : score < 60 ? "ELEVATED" : "HIGH RISK"
-  const circumference = 2 * Math.PI * 52
-  const arc = (score / 100) * circumference
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative w-32 h-32">
-        <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-          <circle cx="60" cy="60" r="52" fill="none" stroke="#1e2230" strokeWidth="8" />
-          <circle
-            cx="60"
-            cy="60"
-            r="52"
-            fill="none"
-            stroke={color}
-            strokeWidth="8"
-            strokeDasharray={`${arc} ${circumference}`}
-            strokeLinecap="round"
-            style={{ transition: "stroke-dasharray 0.6s ease, stroke 0.4s ease" }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold font-mono" style={{ color }}>{score}</span>
-          <span className="text-xs text-slate-500 font-mono">/ 100</span>
-        </div>
-      </div>
-      <span className="text-xs font-mono font-medium tracking-widest" style={{ color }}>{label}</span>
-    </div>
-  )
-}
-
-function MonitorCard({
-  icon,
-  label,
-  monitor,
-}: {
-  icon: string
-  label: string
-  monitor: MonitorState
-}) {
-  const colors = {
-    active: { dot: "bg-emerald-500", text: "text-emerald-400", border: "border-emerald-900/40" },
-    warning: { dot: "bg-amber-500", text: "text-amber-400", border: "border-amber-900/50" },
-    critical: { dot: "bg-red-500 animate-pulse", text: "text-red-400", border: "border-red-900/50" },
-    offline: { dot: "bg-slate-600", text: "text-slate-500", border: "border-slate-800" },
-  }
-  const c = colors[monitor.status]
-
-  return (
-    <div
-      className={`rounded-lg border bg-[#0f1117] p-3 flex flex-col gap-2 transition-all duration-300 ${c.border}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-base">{icon}</span>
-          <span className="text-xs font-medium text-slate-400 tracking-wide uppercase">{label}</span>
-        </div>
-        <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-      </div>
-      <div className={`text-xs font-mono ${c.text} truncate`}>{monitor.value}</div>
-      {monitor.count > 0 && (
-        <div className="text-xs text-slate-600 font-mono">{monitor.count} event{monitor.count !== 1 ? "s" : ""}</div>
-      )}
-    </div>
-  )
-}
-
-function EventLog({ events }: { events: AlertEvent[] }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight
-  }, [events.length])
-
-  const sev = {
-    info: { tag: "bg-slate-700 text-slate-300", dot: "bg-slate-500" },
-    warning: { tag: "bg-amber-900/60 text-amber-300", dot: "bg-amber-400" },
-    critical: { tag: "bg-red-900/60 text-red-300", dot: "bg-red-500" },
-  }
-
-  return (
-    <div ref={ref} className="h-56 overflow-y-auto space-y-1 pr-1">
-      {events.length === 0 && (
-        <div className="flex items-center justify-center h-full text-slate-600 text-xs font-mono">
-          No events detected
-        </div>
-      )}
-      {events.map((e) => (
-        <div
-          key={e.id}
-          className="flex items-start gap-3 py-2 px-3 rounded-md bg-[#0a0d14] border border-[#1e2230]/60 hover:border-[#2a3050] transition-colors"
-        >
-          <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${sev[e.severity].dot}`} />
-          <span className="text-xs font-mono text-slate-500 flex-shrink-0 w-20">{formatTime(e.timestamp)}</span>
-          <span
-            className={`text-xs font-mono px-1.5 py-0.5 rounded flex-shrink-0 ${sev[e.severity].tag}`}
-          >
-            {e.category}
-          </span>
-          <span className="text-xs text-slate-300 flex-1">{e.message}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
+// RiskGauge/MonitorCard/EventLog moved to packages/shared/src/components/dashboard — the
+// candidate is not shown their own risk/monitoring dashboard (that's the interviewer's view now,
+// see interviewer-app/src/App.tsx). The events/monitors/riskScore *state* below is unchanged and
+// still drives the underlying detection — only its visualization moved.
 
 function ScreenCaptureFeed({
   hasPermission,
@@ -193,7 +86,7 @@ function ScreenCaptureFeed({
   }, [onPermission])
 
   return (
-    <div className="relative rounded-lg overflow-hidden bg-[#080b12] aspect-video border border-[#1e2230]">
+    <div className="relative overflow-hidden bg-muted aspect-video border border-border">
       <video
         ref={videoRef}
         autoPlay
@@ -204,18 +97,18 @@ function ScreenCaptureFeed({
       {!hasPermission && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <span className="text-4xl opacity-20">🖥</span>
-          <span className="text-xs text-slate-600 font-mono">
+          <span className="text-xs text-muted-foreground font-mono">
             {error ? error : 'Awaiting screen share permission'}
           </span>
         </div>
       )}
       {hasPermission && (
         <>
-          <div className="absolute top-2 left-2 w-5 h-5 border-t border-l border-amber-500/40" />
-          <div className="absolute top-2 right-2 w-5 h-5 border-t border-r border-amber-500/40" />
-          <div className="absolute bottom-2 left-2 w-5 h-5 border-b border-l border-amber-500/40" />
-          <div className="absolute bottom-2 right-2 w-5 h-5 border-b border-r border-amber-500/40" />
-          <div className="absolute top-2 left-2 text-[9px] font-mono text-amber-600 pl-6">SCREEN</div>
+          <div className="absolute top-2 left-2 w-5 h-5 border-t border-l border-primary/40" />
+          <div className="absolute top-2 right-2 w-5 h-5 border-t border-r border-primary/40" />
+          <div className="absolute bottom-2 left-2 w-5 h-5 border-b border-l border-primary/40" />
+          <div className="absolute bottom-2 right-2 w-5 h-5 border-b border-r border-primary/40" />
+          <div className="absolute top-2 left-2 text-[9px] font-mono text-primary pl-6">SCREEN</div>
         </>
       )}
     </div>
@@ -298,7 +191,7 @@ function WebcamFeed({
   }
 
   return (
-    <div className="relative rounded-lg overflow-hidden bg-[#080b12] aspect-video border border-[#1e2230]">
+    <div className="relative overflow-hidden bg-muted aspect-video border border-border">
         <video
           ref={videoRef}
           autoPlay
@@ -311,7 +204,7 @@ function WebcamFeed({
         { !hasPermission && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <span className="text-4xl opacity-20">📷</span>
-            <span className="text-xs text-slate-600 font-mono">
+            <span className="text-xs text-muted-foreground font-mono">
               {error ? error : "Awaiting camera permission"}
             </span>
           </div>
@@ -327,11 +220,11 @@ function WebcamFeed({
           }}
         >
           <svg viewBox="0 0 24 24" className="w-full h-full">
-            <circle cx="12" cy="12" r="8" fill="none" stroke="#f59e0b" strokeWidth="1.5" opacity="0.8" />
-            <line x1="12" y1="2" x2="12" y2="8" stroke="#f59e0b" strokeWidth="1.5" opacity="0.8" />
-            <line x1="12" y1="16" x2="12" y2="22" stroke="#f59e0b" strokeWidth="1.5" opacity="0.8" />
-            <line x1="2" y1="12" x2="8" y2="12" stroke="#f59e0b" strokeWidth="1.5" opacity="0.8" />
-            <line x1="16" y1="12" x2="22" y2="12" stroke="#f59e0b" strokeWidth="1.5" opacity="0.8" />
+            <circle cx="12" cy="12" r="8" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" opacity="0.8" />
+            <line x1="12" y1="2" x2="12" y2="8" stroke="var(--color-primary)" strokeWidth="1.5" opacity="0.8" />
+            <line x1="12" y1="16" x2="12" y2="22" stroke="var(--color-primary)" strokeWidth="1.5" opacity="0.8" />
+            <line x1="2" y1="12" x2="8" y2="12" stroke="var(--color-primary)" strokeWidth="1.5" opacity="0.8" />
+            <line x1="16" y1="12" x2="22" y2="12" stroke="var(--color-primary)" strokeWidth="1.5" opacity="0.8" />
           </svg>
         </div>
       )}
@@ -339,11 +232,11 @@ function WebcamFeed({
       {/* Corner brackets */}
       {hasPermission && (
         <>
-          <div className="absolute top-2 left-2 w-5 h-5 border-t border-l border-amber-500/40" />
-          <div className="absolute top-2 right-2 w-5 h-5 border-t border-r border-amber-500/40" />
-          <div className="absolute bottom-2 left-2 w-5 h-5 border-b border-l border-amber-500/40" />
-          <div className="absolute bottom-2 right-2 w-5 h-5 border-b border-r border-amber-500/40" />
-          <div className="absolute top-2 left-2 text-[9px] font-mono text-amber-600 pl-6">LIVE</div>
+          <div className="absolute top-2 left-2 w-5 h-5 border-t border-l border-primary/40" />
+          <div className="absolute top-2 right-2 w-5 h-5 border-t border-r border-primary/40" />
+          <div className="absolute bottom-2 left-2 w-5 h-5 border-b border-l border-primary/40" />
+          <div className="absolute bottom-2 right-2 w-5 h-5 border-b border-r border-primary/40" />
+          <div className="absolute top-2 left-2 text-[9px] font-mono text-primary pl-6">LIVE</div>
         </>
       )}
     </div>
@@ -352,7 +245,10 @@ function WebcamFeed({
 
 export default function App() {
   const [events, setEvents] = useState<AlertEvent[]>([])
-  const [riskScore, setRiskScore] = useState(0)
+  // The score itself is no longer read here — the candidate isn't shown their own risk score
+  // (that dashboard moved to interviewer-app/src/App.tsx) — but setRiskScore still drives it
+  // internally via addEvent below, so the state stays; the unused getter slot is just skipped.
+  const [, setRiskScore] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [hasCamera, setHasCamera] = useState(false)
   const [gazeDeviation, setGazeDeviation] = useState<{ x: number; y: number } | null>(null)
@@ -796,73 +692,60 @@ export default function App() {
 
   if (!roomSession) {
     return (
-      <div className="min-h-screen bg-[#07090e] text-slate-200 font-sans flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background text-foreground font-sans flex items-center justify-center p-6">
         <div className="w-full max-w-sm space-y-4">
           <div className="text-center space-y-1">
-            <h1 className="text-lg font-semibold text-slate-100">Join Interview</h1>
-            <p className="text-sm text-slate-500">Paste the room ID from the link your interviewer sent you.</p>
+            <h1 className="text-lg font-semibold text-foreground">Join Interview</h1>
+            <p className="text-sm text-muted-foreground">Paste the room ID from the link your interviewer sent you.</p>
           </div>
 
           {!roomPreview && (
             <form onSubmit={handleLookupRoom} className="space-y-4">
-              <input
+              <Input
                 value={roomIdInput}
                 onChange={(e) => setRoomIdInput(e.target.value)}
                 placeholder="Room ID"
-                className="w-full bg-[#0f1117] border border-[#1e2230] rounded px-3 py-2 text-sm font-mono tracking-widest text-center"
+                className="text-center font-mono tracking-widest"
                 autoFocus
               />
-              {previewError && <p className="text-sm text-red-500 text-center">{previewError}</p>}
-              <button
-                type="submit"
-                disabled={previewLoading || !roomIdInput.trim()}
-                className="w-full bg-amber-500 text-black font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
-              >
+              {previewError && <p className="text-sm text-destructive text-center">{previewError}</p>}
+              <Button type="submit" disabled={previewLoading || !roomIdInput.trim()} className="w-full">
                 {previewLoading ? "Looking up…" : "Find room"}
-              </button>
+              </Button>
             </form>
           )}
 
           {roomPreview && roomPreview.join_status !== "requested" && (
             <div className="space-y-4">
-              <div className="bg-[#0f1117] border border-[#1e2230] rounded px-3 py-3 text-sm text-center space-y-1">
-                <p className="text-slate-100">{roomPreview.candidate_name}</p>
-                <p className="text-slate-500">{roomPreview.role}</p>
-              </div>
-              {previewError && <p className="text-sm text-red-500 text-center">{previewError}</p>}
+              <Card className="px-3 py-3 text-sm text-center space-y-1">
+                <p className="text-foreground">{roomPreview.candidate_name}</p>
+                <p className="text-muted-foreground">{roomPreview.role}</p>
+              </Card>
+              {previewError && <p className="text-sm text-destructive text-center">{previewError}</p>}
               {roomPreview.join_status === "rejected" && (
-                <p className="text-sm text-amber-500 text-center">Your last request was declined.</p>
+                <p className="text-sm text-[var(--color-warning)] text-center">Your last request was declined.</p>
               )}
-              <button
-                type="button"
-                onClick={handleAskToJoin}
-                disabled={requesting}
-                className="w-full bg-amber-500 text-black font-medium rounded px-3 py-2 text-sm disabled:opacity-50"
-              >
+              <Button type="button" onClick={handleAskToJoin} disabled={requesting} className="w-full">
                 {requesting ? "Sending…" : "Ask to Join"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoomPreview(null)}
-                className="w-full text-xs text-center text-slate-600 underline underline-offset-2"
-              >
+              </Button>
+              <Button type="button" variant="link" onClick={() => setRoomPreview(null)} className="w-full">
                 Look up a different room
-              </button>
+              </Button>
             </div>
           )}
 
           {roomPreview && roomPreview.join_status === "requested" && (
             <div className="space-y-2 text-center">
-              <div className="bg-[#0f1117] border border-[#1e2230] rounded px-3 py-3 text-sm space-y-1">
-                <p className="text-slate-100">{roomPreview.candidate_name}</p>
-                <p className="text-slate-500">{roomPreview.role}</p>
-              </div>
-              <p className="text-sm text-slate-400">Waiting for the interviewer to let you in…</p>
+              <Card className="px-3 py-3 text-sm space-y-1">
+                <p className="text-foreground">{roomPreview.candidate_name}</p>
+                <p className="text-muted-foreground">{roomPreview.role}</p>
+              </Card>
+              <p className="text-sm text-muted-foreground">Waiting for the interviewer to let you in…</p>
             </div>
           )}
 
           {userEmail && (
-            <p className="text-xs text-center text-slate-600">
+            <p className="text-xs text-center text-muted-foreground">
               Signed in as {userEmail}.{" "}
               <button type="button" onClick={() => setAccessToken(null)} className="underline underline-offset-2">
                 Sign out
@@ -875,81 +758,69 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-200 font-sans p-4 lg:p-6">
+    <div className="min-h-screen bg-background text-foreground font-sans p-4 lg:p-6">
       {/* Header */}
-      <header className="flex items-center justify-between mb-6 pb-4 border-b border-[#1e2230]">
+      <header className="flex items-center justify-between mb-6 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded bg-amber-500 flex items-center justify-center">
-            <span className="text-xs font-bold text-black">P</span>
+          <div className="w-7 h-7 bg-primary flex items-center justify-center">
+            <span className="text-xs font-bold text-primary-foreground">P</span>
           </div>
           <div>
-            <span className="font-semibold text-slate-100 tracking-tight">UnGhosted</span>
-            <span className="ml-2 text-xs font-mono text-slate-600">v2.4.1</span>
+            <span className="font-semibold text-foreground tracking-tight">UnGhosted</span>
+            <span className="ml-2 text-xs font-mono text-muted-foreground">v2.4.1</span>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
-          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-500">
-            <span className="text-slate-600">SESSION</span>
-            <span className="text-amber-500">{SESSION_ID}</span>
+          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-muted-foreground">
+            <span>SESSION</span>
+            <span className="text-primary">{SESSION_ID}</span>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono">
-            <span className={`w-1.5 h-1.5 rounded-full ${isSessionActive ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`} />
-            <span className={isSessionActive ? "text-emerald-400" : "text-slate-600"}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isSessionActive ? "bg-[var(--color-signal)] animate-pulse" : "bg-muted-foreground"}`} />
+            <span className={isSessionActive ? "text-[var(--color-signal)]" : "text-muted-foreground"}>
               {isSessionActive ? elapsedStr : "IDLE"}
             </span>
           </div>
-          <button
+          <Button
             onClick={isSessionActive ? stopSession : startSession}
-            className={`text-xs font-mono font-medium px-4 py-1.5 rounded border transition-all ${
-              isSessionActive
-                ? "border-red-800 text-red-400 hover:bg-red-900/30"
-                : "border-amber-700 text-amber-400 hover:bg-amber-900/30"
-            }`}
+            variant={isSessionActive ? "destructive" : "default"}
+            size="sm"
           >
-            {isSessionActive ? "END SESSION" : "START SESSION"}
-          </button>
+            {isSessionActive ? "End session" : "Start session"}
+          </Button>
         </div>
       </header>
 
       {/* Candidate Info Bar */}
-      <div className="flex flex-wrap items-center gap-4 mb-5 px-4 py-3 rounded-lg bg-[#0f1117] border border-[#1e2230]">
+      <Card className="flex flex-wrap items-center gap-4 mb-5 px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#1c2030] flex items-center justify-center text-sm font-semibold text-amber-500">
+          <div className="w-8 h-8 bg-secondary flex items-center justify-center text-sm font-semibold text-primary">
             {CANDIDATE.split(" ").map((n) => n[0]).join("")}
           </div>
           <div>
-            <div className="text-sm font-medium text-slate-200">{CANDIDATE}</div>
-            <div className="text-xs text-slate-600 font-mono">{ROLE}</div>
+            <div className="text-sm font-medium text-foreground">{CANDIDATE}</div>
+            <div className="text-xs text-muted-foreground font-mono">{ROLE}</div>
           </div>
         </div>
-        <div className="h-6 w-px bg-[#1e2230] hidden sm:block" />
-        {criticalCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-            <span className="text-red-400">{criticalCount} critical alert{criticalCount !== 1 ? "s" : ""}</span>
-          </div>
-        )}
-        {warningCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span className="text-amber-400">{warningCount} warning{warningCount !== 1 ? "s" : ""}</span>
-          </div>
-        )}
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+        {criticalCount > 0 && <Badge variant="critical">{criticalCount} critical alert{criticalCount !== 1 ? "s" : ""}</Badge>}
+        {warningCount > 0 && <Badge variant="warning">{warningCount} warning{warningCount !== 1 ? "s" : ""}</Badge>}
         {!isSessionActive && (
-          <div className="text-xs font-mono text-slate-600 ml-auto">Session not started</div>
+          <div className="text-xs font-mono text-muted-foreground ml-auto">Session not started</div>
         )}
-      </div>
+      </Card>
 
-      {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
-        {/* Left: Webcam + Gaze */}
+      {/* Main Layout — single column: the risk/monitoring dashboard that used to sit in a right
+          column here now lives on the interviewer side only (see interviewer-app/src/App.tsx). */}
+      <div className="max-w-xl mx-auto">
+        {/* Webcam + Gaze */}
         <div className="flex flex-col gap-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Camera Feed</span>
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Camera Feed</span>
               {hasCamera && isSessionActive && (
-                <span className="text-xs font-mono text-amber-600">Eye tracking active</span>
+                <span className="text-xs font-mono text-[var(--color-warning)]">Eye tracking active</span>
               )}
             </div>
             <WebcamFeed
@@ -968,13 +839,13 @@ export default function App() {
             )}
             <div>
             <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Screen Feed</span>
-            {hasScreen && <span className="text-xs font-mono text-amber-600">Recording</span>}
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Screen Feed</span>
+            {hasScreen && <span className="text-xs font-mono text-[var(--color-warning)]">Recording</span>}
             </div>
             {isSessionActive ? (
               <ScreenCaptureFeed hasPermission={hasScreen} onPermission={handleScreenPermission} />
             ) : (
-            <div className="rounded-lg bg-[#080b12] aspect-video border border-[#1e2230] flex items-center justify-center text-xs text-slate-600 font-mono">
+            <div className="bg-muted aspect-video border border-border flex items-center justify-center text-xs text-muted-foreground font-mono">
             Starts with session
             </div>
             )}
@@ -983,25 +854,25 @@ export default function App() {
 
           {/* Gaze heatmap legend */}
           {hasCamera && isSessionActive && (
-            <div className="rounded-lg bg-[#0f1117] border border-[#1e2230] p-3">
-              <div className="text-xs font-mono text-slate-500 uppercase tracking-widest mb-2">Gaze Analysis</div>
+            <Card className="p-3">
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Gaze Analysis</div>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Deviations", value: monitors.gaze.count.toString(), color: "text-amber-400" },
-                  { label: "Status", value: monitors.gaze.value, color: monitors.gaze.status === "warning" ? "text-amber-400" : "text-emerald-400" },
+                  { label: "Deviations", value: monitors.gaze.count.toString(), color: "text-[var(--color-warning)]" },
+                  { label: "Status", value: monitors.gaze.value, color: monitors.gaze.status === "warning" ? "text-[var(--color-warning)]" : "text-[var(--color-signal)]" },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-slate-600 font-mono">{item.label}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{item.label}</span>
                     <span className={`text-xs font-mono font-medium ${item.color}`}>{item.value}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Detection method note */}
-          <div className="rounded-lg bg-[#0a0c12] border border-[#1a1e2a] p-3">
-            <div className="text-xs font-mono text-slate-600 uppercase tracking-widest mb-2">Detection Coverage</div>
+          <Card className="p-3">
+            <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Detection Coverage</div>
             <div className="space-y-1.5">
               {[
                 { label: "Ghost overlay tools", note: "Focus/blur + mouse tracking (gaze cannot see on-screen content)" },
@@ -1010,113 +881,22 @@ export default function App() {
                 { label: "Browser tab switch", note: "Visibility API" },
               ].map((item) => (
                 <div key={item.label} className="flex items-start justify-between gap-2">
-                  <span className="text-[10px] text-slate-500">{item.label}</span>
-                  <span className="text-[10px] font-mono text-slate-600 text-right">{item.note}</span>
+                  <span className="text-[10px] text-muted-foreground">{item.label}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground text-right">{item.note}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
 
-        {/* Right: Risk + Monitors + Log */}
-        <div className="flex flex-col gap-5">
-          {/* Risk Score + Monitor Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 items-start">
-            {/* Risk gauge */}
-            <div className="rounded-lg bg-[#0f1117] border border-[#1e2230] p-5 flex flex-col items-center gap-3">
-              <span className="text-xs font-mono text-slate-500 uppercase tracking-widest self-start">Risk Score</span>
-              <RiskGauge score={riskScore} />
-              <div className="w-full space-y-1 mt-1">
-                {[
-                  { label: "0–24", color: "bg-emerald-500", text: "Low" },
-                  { label: "25–59", color: "bg-amber-500", text: "Elevated" },
-                  { label: "60+", color: "bg-red-500", text: "High Risk" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span className={`w-2 h-1.5 rounded-sm ${item.color}`} />
-                    <span className="text-[10px] font-mono text-slate-600">{item.label}</span>
-                    <span className="text-[10px] font-mono text-slate-500">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Monitor cards grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <MonitorCard icon="🪟" label="Tab Focus" monitor={monitors.tabFocus} />
-              <MonitorCard icon="🎙" label="Audio" monitor={monitors.audio} />
-              <MonitorCard icon="👁" label="Gaze" monitor={monitors.gaze} />
-              <MonitorCard icon="🖱" label="Mouse" monitor={monitors.mouse} />
-              <MonitorCard icon="📋" label="Clipboard" monitor={monitors.clipboard} />
-              <MonitorCard icon="⌨️" label="Keystrokes" monitor={monitors.keyboard} />
-              <MonitorCard icon="🚫" label="Hidden Apps" monitor={monitors.process} />
-            </div>
-          </div>
-
-          {/* Alert thresholds */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              {
-                title: "Screen-Share Bypass",
-                desc: "Overlay tools that exclude themselves from screen capture can't be caught by webcam gaze alone — gaze looks the same whether reading the intended content or an overlay. Focus/blur and mouse-egress events are the actual signal here.",
-                icon: "🛡",
-                severity: "critical" as const,
-              },
-              {
-                title: "External AI Tools",
-                desc: "Clipboard paste events and keyboard burst patterns indicate AI-generated answers being copied in from external sessions.",
-                icon: "🤖",
-                severity: "warning" as const,
-              },
-              {
-                title: "Phone / Second Screen",
-                desc: "Repeated gaze deviation toward off-screen areas combined with voice activity suggests reference to a secondary device.",
-                icon: "📱",
-                severity: "warning" as const,
-              },
-            ].map((card) => (
-              <div
-                key={card.title}
-                className={`rounded-lg p-3 border bg-[#0f1117] ${
-                  card.severity === "critical" ? "border-red-900/40" : "border-amber-900/30"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span>{card.icon}</span>
-                  <span className="text-xs font-medium text-slate-300">{card.title}</span>
-                </div>
-                <p className="text-[10px] text-slate-600 leading-relaxed">{card.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Event Log */}
-          <div className="rounded-lg bg-[#0f1117] border border-[#1e2230] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Event Log</span>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-slate-600">{events.length} events</span>
-                {events.length > 0 && (
-                  <button
-                    onClick={() => { setEvents([]); setRiskScore(0) }}
-                    className="text-xs font-mono text-slate-700 hover:text-slate-500 transition-colors"
-                  >
-                    clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <EventLog events={events} />
-          </div>
-        </div>
       </div>
 
       {/* Footer */}
-      <footer className="mt-6 pt-4 border-t border-[#1e2230] flex items-center justify-between">
-        <span className="text-[10px] font-mono text-slate-700">
+      <footer className="mt-6 pt-4 border-t border-border flex items-center justify-between">
+        <span className="text-[10px] font-mono text-muted-foreground">
           Unghosted • Browser-native behavioral analysis
         </span>
-        <span className="text-[10px] font-mono text-slate-700">
+        <span className="text-[10px] font-mono text-muted-foreground">
           Tab API · Web Audio API · Gaze estimation · Keyboard heuristics
         </span>
       </footer>

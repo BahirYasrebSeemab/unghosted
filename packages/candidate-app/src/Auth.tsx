@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react"
+import { Button, Input } from "@unghosted/shared"
 
 export function decodeJwtSub(token: string): string | null {
   try {
@@ -86,29 +87,23 @@ function LoginScreen({
   return (
     <AuthShell>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input
+        <Input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           autoFocus
         />
-        <input
+        <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading || !email || !password}
-          className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40 transition-opacity"
-        >
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={loading || !email || !password} className="w-full">
           {loading ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
         <p className="text-sm text-center text-secondary-foreground pt-2">
           New here?{" "}
           <button type="button" onClick={onGoToRegister} className="text-foreground underline underline-offset-2">
@@ -175,35 +170,18 @@ function RegisterScreen({
     <AuthShell>
       {step === "details" ? (
         <form onSubmit={handleSendCode} className="space-y-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            autoFocus
-          />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
-          <input
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoFocus />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+          <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || !name || !email || !password}
-            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40"
-          >
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" disabled={loading || !name || !email || !password} className="w-full">
             {loading ? "Sending…" : "Send verification code"}
-          </button>
+          </Button>
           <p className="text-sm text-center text-secondary-foreground pt-2">
             <button type="button" onClick={onBackToLogin} className="underline underline-offset-2">
               Back to sign in
@@ -215,21 +193,17 @@ function RegisterScreen({
           <p className="text-sm text-secondary-foreground text-center">
             Enter the code sent to <span className="text-foreground">{email}</span>.
           </p>
-          <input
+          <Input
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Verification code"
-            className="w-full bg-card border border-border rounded px-3 py-2.5 text-sm font-mono tracking-widest text-center outline-none focus:ring-1 focus:ring-ring"
+            className="font-mono tracking-widest text-center"
             autoFocus
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || !code.trim()}
-            className="w-full bg-primary text-primary-foreground font-medium rounded px-3 py-2.5 text-sm disabled:opacity-40"
-          >
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" disabled={loading || !code.trim()} className="w-full">
             {loading ? "Confirming…" : "Confirm"}
-          </button>
+          </Button>
         </form>
       )}
     </AuthShell>
