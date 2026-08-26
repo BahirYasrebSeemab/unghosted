@@ -2,15 +2,17 @@ package signaling
 
 import (
 	"errors"
+	"go-server/internal/errors/apierr"
 	"go-server/internal/pkg/httputil"
 	"go-server/internal/room"
 	"log"
 	"log/slog"
 	"net/http"
 
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
-	"time"
 )
 
 const (
@@ -52,8 +54,13 @@ func (h *Handler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	log.Println("HandleConnection reached, headers:", r.Header, "query:", r.URL.RawQuery)
 
 	rm, err := h.roomService.GetByID(r.Context(), roomID)
-	if err != nil || rm.Status == room.StateEnded {
+	if err != nil {
 		httputil.Error(w, err)
+		return
+	}
+
+	if rm.Status == room.StateEnded {
+		httputil.Error(w, apierr.NotFound("room has ended", nil))
 		return
 	}
 
