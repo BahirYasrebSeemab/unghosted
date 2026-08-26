@@ -2,6 +2,7 @@ package signaling
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 )
 
@@ -33,6 +34,7 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case c := <-h.join:
+			log.Println("register: client", c.ID, "joining room", c.RoomID)
 			h.mu.Lock()
 			// If there are no rooms and therefore no client lists inside initialized
 			existing := make([]string, 0, len(h.rooms[c.RoomID]))
@@ -53,6 +55,7 @@ func (h *Hub) Run() {
 				Type: MessageTypePeerList,
 				Payload: payload,
 			}
+			log.Println("register: sending peer-list to:", c.ID, "existing peers:", existing)
 
 		case c := <-h.leave:
 			h.mu.Lock()

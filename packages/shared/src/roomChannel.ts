@@ -39,6 +39,7 @@ export class RoomChannel {
     const url = `${wsBaseUrl}/v1/room/${roomId}/ws?token=${encodeURIComponent(token)}`
     this.ws = new WebSocket(url)
     this.ws.onmessage = (event) => {
+      console.log("RAW WS MESSAGE", event.data);
       const msg = JSON.parse(event.data) as RoomChannelMessage
       this.listeners.forEach((listener) => listener(msg))
     }

@@ -46,6 +46,8 @@ export default class PeerManager {
   private handleMessage(msg: unknown): void {
     if (typeof msg !== "object" || msg === null || !("type" in msg)) return
     const signal = msg as SignalMessage
+    console.log("SIGNAL RECEIVED", signal.type, signal)
+
     switch (signal.type) {
       case "offer":
         this.handleOffer(signal)
@@ -127,6 +129,10 @@ export default class PeerManager {
     }
     client.onconnectionstatechange = () => {
       console.log(`[${peerId}] connection state:`, client.connectionState)
+    }
+
+    client.onicegatheringstatechange = () => {
+      console.log(`[${peerId} ICE gathering state]:`, client.iceGatheringState)
     }
     this.peers.set(peerId, client)
     return client
