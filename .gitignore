@@ -25,3 +25,10 @@ release
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets: never commit real env files
+.env
+*.env
+!.env.example
+cookies.txt
+graphify-out/

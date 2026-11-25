@@ -1,84 +1,82 @@
 # UnGhosted
 
-UnGhosted is a desktop interview-proctoring / anti-cheating monitor. During a live technical
-interview it watches for signs of AI-assisted or otherwise dishonest behavior — tab/window
-switching, clipboard pastes, keystroke-burst patterns suggesting pasted code, gaze/attention drift
-via webcam, voice activity, and OS-level windows that hide themselves from screen capture (e.g.
-"GhostGPT"-style overlay tools).
+**A desktop proctoring app for live technical interviews.** The candidate works inside a locked-down
+Electron app that watches for signs of AI help: window and tab switching, clipboard pastes,
+keystroke bursts that look like pasted code, gaze drift on the webcam, voice activity, and OS windows
+that hide themselves from screen capture (the "invisible overlay" cheating tools). The interviewer
+sees the live video call and a risk feed in their own app.
 
-## What's in this repo
+> Team project, built by three developers in summer 2026. This is my public copy of our shared
+> repository (secrets removed from history). Status: working prototype, not a finished product.
 
-This is a **Bun workspaces monorepo** containing two separately-built, separately-installed
-Electron apps, plus a shared package:
+## What's in here
 
 ```
+apps/
+  api/                 Go backend: auth, companies, admins, rooms, WebRTC signaling, chat (PostgreSQL)
 packages/
-├── candidate-app/     the kiosk surface the candidate sits inside during a session
-├── interviewer-app/   the interviewer's dashboard/control surface
-└── shared/            (@unghosted/shared) types shared between the two apps
+  candidate-app/       Electron + React: the kiosk the candidate sits in, collects the signals
+  interviewer-app/     Electron + React: the interviewer's dashboard and video call
+  admin-web/           React (Vite) web app: company and admin management
+  shared/              Types, room channel and WebRTC hooks shared by both desktop apps
+docs/API_CONTRACT.md   REST + WebSocket contract between the apps and the API
 ```
 
-**Why two apps instead of one:** the interviewer and the candidate are on different machines with
-very different needs. The candidate app locks into kiosk mode and does the actual signal
-collection; the interviewer app is a normal window that watches the results. They're built and
-installed independently. See `ROADMAP.md` for the full reasoning and what's still open.
+**Stack:** TypeScript · React · Electron · Vite · Bun workspaces · Go · PostgreSQL · WebRTC (TURN/STUN) ·
+WebSockets · koffi (native Win32 calls for window scanning)
 
-**Current status:** the two-app split is scaffolded, but not finished. `candidate-app` is the
-original single-app implementation relocated as-is — it still contains the interviewer-dashboard
-UI (risk gauge, monitor cards, event log) that hasn't been pulled out into `interviewer-app` yet.
-`interviewer-app` is currently just a placeholder screen. There is no backend yet — auth, rooms,
-and the live event stream all depend on a Go backend a separate team is building; see
-`docs/API_CONTRACT.md` for the draft contract, and `ROADMAP.md` for what's decided vs. still open.
-Check `ROADMAP.md` before assuming anything below the "scaffolding" layer is done.
+## How it works
 
-## Setup
+1. A company admin creates an interview room (admin web → Go API).
+2. The interviewer opens the room in the interviewer app; the candidate joins with a code in the
+   candidate app, which switches to kiosk mode.
+3. The two apps open a WebRTC video call. Signaling (offer, answer, ICE candidates) goes through the
+   Go API's WebSocket; media goes peer to peer, relayed over TURN when NAT requires it.
+4. The candidate app streams monitoring events to the interviewer, who sees them as a risk gauge
+   and an event log.
 
-Package manager is **Bun**.
+## My part (Bahir Yasreb Seemab)
 
-```
+- **Monorepo split:** turned the original single Electron app into separate candidate and
+  interviewer apps plus a shared package (Bun workspaces), and wrote the API contract the Go
+  backend was built against. Fixed two bugs found on the first run after the split: the native
+  `koffi` module being bundled instead of kept external, and a Win32 `GetWindowTextW` scope bug.
+- **Backend:** authentication for interviewers and companies, the rooms table and room-joining
+  endpoints in the Go API, CORS support, and moving the admin UI into its own web app.
+- **Live video debugging:** the call connected but video never arrived. The cause was a race: the
+  `RTCPeerConnection` was created before the TURN credentials finished loading, and a connection's
+  ICE servers are fixed when it is created, so it silently stayed on STUN only. Fixed by waiting
+  for the credentials (which always settle quickly, with a STUN fallback) before creating the
+  connection. Also fixed a signaling "glare" crash when both sides sent offers at once, and a
+  duplicate signaling socket in the interviewer app.
+
+Teammates: [Fa1tinthesky](https://github.com/Fa1tinthesky) (original candidate app, monitoring
+signals, signaling) and [Noskash](https://github.com/Noskash) (admin panel backend, WebSockets).
+
+## Run it
+
+Needs [Bun](https://bun.sh), Go 1.26+, and PostgreSQL.
+
+```bash
 bun install
+
+# API
+cp apps/api/.env.example apps/api/cmd/server/.env   # then fill in
+cd apps/api && go run ./cmd/seedadmin && go run ./cmd/server
+
+# Apps (from the repo root, each in its own terminal)
+cp packages/candidate-app/.env.example packages/candidate-app/.env
+cp packages/interviewer-app/.env.example packages/interviewer-app/.env
+bun run dev:interviewer
+bun run dev:candidate
+bun run dev:admin
 ```
 
-`koffi` (used by `candidate-app` for Windows window-scanning) is a native dependency listed in
-`trustedDependencies`, so Bun will run its install script automatically.
+`bun run build:candidate` (and `build:interviewer`) packages an installer with electron-builder.
 
-## Running the apps
+## Limits
 
-From the repo root:
-
-```
-bun run dev:candidate       # candidate/kiosk app, dev mode with hot reload
-bun run dev:interviewer     # interviewer app, dev mode with hot reload
-```
-
-Or from inside a package directory (`packages/candidate-app` or `packages/interviewer-app`):
-
-```
-bun run dev        # vite dev server + electron
-bun run build       # tsc typecheck -> vite build -> electron-builder packaging
-bun run lint
-bun run preview     # renderer only, no electron shell
-```
-
-`build` is the one that packages an actual installer (via electron-builder) — `dev` just runs the
-app locally and doesn't need a typecheck to pass first.
-
-**Known issue:** `candidate-app` does not currently pass `tsc --noEmit` cleanly (pre-existing —
-confirmed unrelated to the workspace split, see `CLAUDE.md`'s "Known rough edges"). This does not
-block `dev`, only `build`.
-
-## Platform support
-
-Built and tested on **Windows** so far. `candidate-app`'s window-scanning feature
-(`electron/windowScanner.ts`, the part that detects hidden/overlay windows like GhostGPT-style
-tools) calls raw Win32 APIs directly and is **Windows-only** — it's a no-op import failure on
-macOS/Linux as written. Everything else (UI, auth, code editor, kiosk lock via Electron's own
-cross-platform APIs) is portable; see `ROADMAP.md`'s Mac-feasibility notes for what porting
-window-scanning would take.
-
-## Where to look next
-
-- **`ROADMAP.md`** — the living plan: what's decided, what's still open, what's actually done. Read this first before starting new work on the app split, auth, or any of the other TODO items.
-- **`docs/API_CONTRACT.md`** — draft REST/WebSocket contract for the Go backend team (auth, orgs, rooms, live event stream, code editor autosave, chat/files). Not yet confirmed with them.
-- **`CLAUDE.md`** — architecture notes: per-app module structure, the Electron main/preload/renderer split, and known rough edges/bugs.
-- **`TODO.md`** — the original short-form task list this roadmap was built from.
+- Window scanning for hidden overlay windows calls Win32 directly, so it works on **Windows only**;
+  the rest of the apps are cross-platform.
+- `candidate-app` does not pass `tsc --noEmit` cleanly yet (this blocks `build`, not `dev`).
+- See `ROADMAP.md` for what is decided, what is open, and what is done.
